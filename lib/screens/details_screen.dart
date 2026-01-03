@@ -1,0 +1,594 @@
+// FILE: lib/screens/details_screen.dart
+// ==============================
+import 'dart:async';
+import 'package:flutter/material.dart';
+import '../config/theme.dart';
+import '../models/rst_report.dart';
+import '../widgets/radio_dial.dart';
+import '../services/callsign_lookup.dart';
+import '../services/settings_service.dart';
+
+class QsoDetailsScreen extends StatefulWidget {
+  final String callsign;
+  const QsoDetailsScreen({super.key, required this.callsign});
+
+  @override
+  State<QsoDetailsScreen> createState() => _QsoDetailsScreenState();
+}
+
+class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
+  // --- BAND & FREQUENCY STATE ---
+  final List<String> _bandList = bandPlan.keys.toList();
+  double _bandSliderValue = 5.0; // Default to index 5 (20m)
+  String _selectedBand = '20m';
+  double _currentFreq = 14.074;
+  
+  // --- MODE STATE ---
+  List<String> _activeModes = [];
+  String _selectedMode = 'SSB';
+
+  // --- TIME STATE ---
+  DateTime _logTime = DateTime.now();
+  bool _isManualTime = false; // If true, clock stops ticking
+  Timer? _timer;
+
+  // --- USER DATA STATE ---
+  String _opName = "Loading..."; 
+  String _opClass = "...";
+  String _opCity = "Loading...";
+  String _opState = "";
+  String _opCountry = "";
+  String _opGrid = "Loading...";
+
+  // --- RST STATE ---
+  final RstReport _sentRst = RstReport();
+  final RstReport _rcvdRst = RstReport();
+
+  @override
+  void initState() {
+    super.initState();
+    _performLookup(); 
+    _loadPreferences(); 
+    
+    // Start the clock - Ticks every second
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!_isManualTime && mounted) {
+        setState(() {
+          _logTime = DateTime.now();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  // --- LOGIC: LOAD SETTINGS ---
+  Future<void> _loadPreferences() async {
+    List<String> savedModes = await AppSettings.getModes();
+    Map<String, dynamic> lastState = await AppSettings.getLastRadioState();
+    
+    if (mounted) {
+      setState(() {
+        _activeModes = savedModes;
+        
+        // Restore Band
+        if (lastState['band'] != null && _bandList.contains(lastState['band'])) {
+          _selectedBand = lastState['band'];
+          _bandSliderValue = _bandList.indexOf(_selectedBand).toDouble();
+        }
+
+        // Restore Frequency
+        if (lastState['freq'] != null) {
+          _currentFreq = lastState['freq'];
+        }
+
+        // Restore Mode
+        if (lastState['mode'] != null && _activeModes.contains(lastState['mode'])) {
+          _selectedMode = lastState['mode'];
+        } else if (!_activeModes.contains(_selectedMode) && _activeModes.isNotEmpty) {
+          _selectedMode = _activeModes.first;
+        }
+      });
+    }
+  }
+
+  // --- LOGIC: CALLSIGN LOOKUP ---
+  Future<void> _performLookup() async {
+    setState(() {
+      _opName = "Looking up...";
+      _opClass = "...";
+      _opCity = "...";
+      _opGrid = "...";
+    });
+
+    HamProfile profile = await CallsignLookup.fetch(widget.callsign);
+
+    if (mounted) {
+      setState(() {
+        _opName = profile.name;
+        _opClass = profile.licenseClass;
+        _opCity = profile.city;
+        _opState = profile.state;
+        _opCountry = profile.country;
+        _opGrid = profile.grid;
+      });
+    }
+  }
+
+  // --- LOGIC: FREQUENCY & BAND ---
+  void _updateBandFromDial(double sliderValue) {
+    int index = sliderValue.round();
+    String newBand = _bandList[index];
+    setState(() {
+      _bandSliderValue = sliderValue;
+      _selectedBand = newBand;
+      _currentFreq = bandPlan[newBand]![2]; 
+    });
+  }
+
+  void _stepFreq(double sign) {
+    double min = bandPlan[_selectedBand]![0];
+    double max = bandPlan[_selectedBand]![1];
+    double stepSize = 0.001; // 1 kHz
+
+    double newFreq = _currentFreq + (sign * stepSize);
+    if (newFreq < min) newFreq = min;
+    if (newFreq > max) newFreq = max;
+
+    setState(() => _currentFreq = newFreq);
+  }
+
+  String? _getBandForFreq(double freq) {
+    for (var entry in bandPlan.entries) {
+      if (freq >= entry.value[0] && freq <= entry.value[1]) {
+        return entry.key;
+      }
+    }
+    return null;
+  }
+
+  // --- UI DIALOGS ---
+
+  // 1. Time Picker (Date + Time)
+  Future<void> _pickDateTime() async {
+    // 1. Pick Date
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _logTime,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate == null) return;
+
+    // 2. Pick Time
+    if (!mounted) return;
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_logTime),
+    );
+    if (pickedTime == null) return;
+
+    // 3. Combine
+    setState(() {
+      _logTime = DateTime(
+        pickedDate.year, pickedDate.month, pickedDate.day,
+        pickedTime.hour, pickedTime.minute, 0 // Seconds reset to 0 for manual
+      );
+      _isManualTime = true; // Stop the clock
+    });
+  }
+
+  void _resetToLiveTime() {
+    setState(() {
+      _isManualTime = false;
+      _logTime = DateTime.now();
+    });
+  }
+
+  // 2. Direct Frequency Entry
+  void _showFrequencyInput() {
+    String buffer = ""; 
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Widget buildKey(String label, {Color? color, Color? txtColor, int flex = 1}) {
+              return Expanded(
+                flex: flex,
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: color ?? Colors.grey[100],
+                      foregroundColor: txtColor ?? Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    onPressed: () {
+                      if (label == 'DEL') {
+                        if (buffer.isNotEmpty) {
+                          setDialogState(() => buffer = buffer.substring(0, buffer.length - 1));
+                        }
+                      } else if (label == 'ENT') {
+                        if (buffer.isEmpty) return;
+                        double? newFreq = double.tryParse(buffer);
+                        if (newFreq != null) {
+                          if (newFreq > 1000) newFreq = newFreq / 1000;
+                          String? targetBand = _getBandForFreq(newFreq);
+                          if (targetBand != null) {
+                            setState(() {
+                              _selectedBand = targetBand;
+                              _bandSliderValue = _bandList.indexOf(targetBand).toDouble();
+                              _currentFreq = newFreq!;
+                            });
+                            Navigator.pop(context);
+                          } else {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('$newFreq MHz is outside supported bands'), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      } else {
+                        if (label == '.' && buffer.contains('.')) return;
+                        setDialogState(() => buffer += label);
+                      }
+                    },
+                    child: label == 'DEL' 
+                      ? const Icon(Icons.backspace_outlined) 
+                      : Text(label, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              );
+            }
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Text(buffer.isEmpty ? "MHz / kHz" : buffer, textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: buffer.isEmpty ? Colors.grey : Colors.black)),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(children: [buildKey('1'), buildKey('2'), buildKey('3')]),
+                    Row(children: [buildKey('4'), buildKey('5'), buildKey('6')]),
+                    Row(children: [buildKey('7'), buildKey('8'), buildKey('9')]),
+                    Row(children: [buildKey('.'), buildKey('0'), buildKey('DEL', color: Colors.red[50], txtColor: Colors.red)]),
+                    const SizedBox(height: 8),
+                    Row(children: [buildKey('ENT', color: AppTheme.primaryColor, txtColor: Colors.white)]),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  // 3. Mode Selector
+  void _showModePicker() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return SimpleDialog(
+          title: const Text('Select Mode'),
+          children: _activeModes.map((mode) {
+            return SimpleDialogOption(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              onPressed: () {
+                setState(() => _selectedMode = mode);
+                Navigator.pop(context);
+              },
+              child: Text(mode, style: const TextStyle(fontSize: 18)),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  // 4. RST Editor
+  void _showRstEditor(String title, RstReport report) {
+    bool isCW = _selectedMode == 'CW';
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text("$title Report"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(report.formatted(isCW), style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                  const SizedBox(height: 20),
+                  Row(children: [const SizedBox(width: 20, child: Text("R", style: TextStyle(fontWeight: FontWeight.bold))), Expanded(child: Slider(value: report.r, min: 1, max: 5, divisions: 4, onChanged: (v) => setDialogState(() => report.r = v)))]),
+                  Row(children: [const SizedBox(width: 20, child: Text("S", style: TextStyle(fontWeight: FontWeight.bold))), Expanded(child: Slider(value: report.s, min: 1, max: 9, divisions: 8, onChanged: (v) => setDialogState(() => report.s = v)))]),
+                  if (isCW) Row(children: [const SizedBox(width: 20, child: Text("T", style: TextStyle(fontWeight: FontWeight.bold))), Expanded(child: Slider(value: report.t, min: 1, max: 9, divisions: 8, onChanged: (v) => setDialogState(() => report.t = v)))]),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => setDialogState(() => report.reset()), child: const Text("Reset 59")),
+                ElevatedButton(onPressed: () { Navigator.pop(context); setState(() {}); }, child: const Text("Done"))
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
+
+  // --- HELPER: FORMAT DATE ---
+  String _formatDateTime(DateTime dt, {bool isUtc = false}) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    DateTime t = isUtc ? dt.toUtc() : dt;
+    return "${t.year}-${twoDigits(t.month)}-${twoDigits(t.day)} ${twoDigits(t.hour)}:${twoDigits(t.minute)}:${twoDigits(t.second)}";
+  }
+
+  // --- SUBMIT LOG ---
+  void _submitLog() {
+    bool isCW = _selectedMode == 'CW';
+    
+    // Clean up floating point artifacts
+    double cleanFreq = double.parse(_currentFreq.toStringAsFixed(3));
+
+    print("LOGGING: ${widget.callsign} | ${_formatDateTime(_logTime, isUtc: true)} UTC | $_selectedBand | ${cleanFreq}MHz | $_selectedMode | Sent:${_sentRst.formatted(isCW)} Rcvd:${_rcvdRst.formatted(isCW)}");
+    
+    AppSettings.saveRadioState(_selectedBand, _currentFreq, _selectedMode);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Contact Logged!'), backgroundColor: Colors.green),
+    );
+
+    Navigator.pop(context, true); 
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    double minFreq = bandPlan[_selectedBand]![0];
+    double maxFreq = bandPlan[_selectedBand]![1];
+    bool isCW = _selectedMode == 'CW';
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Log Contact"), 
+        backgroundColor: AppTheme.primaryColor, 
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(onPressed: _submitLog, icon: const Icon(Icons.save, size: 30), tooltip: "Save Contact"),
+          const SizedBox(width: 10),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. USER DATA CARD
+            Card(
+              color: Colors.white,
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        // Callsign
+                        Text(
+                          widget.callsign, 
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)
+                        ),
+                        
+                        // UPDATED: Subtle "Cancel" style close button
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: IconButton(
+                            icon: Icon(Icons.cancel, color: Colors.grey[400], size: 28),
+                            tooltip: "Clear and Return",
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(), // Removes extra padding around the icon
+                            onPressed: () {
+                              Navigator.pop(context, true);
+                            },
+                          ),
+                        ),
+
+                        const Spacer(), 
+
+                        // License Class Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange[100], 
+                            borderRadius: BorderRadius.circular(8), 
+                            border: Border.all(color: Colors.orange)
+                          ),
+                          child: Text(
+                            _opClass.toUpperCase(), 
+                            style: TextStyle(color: Colors.orange[900], fontWeight: FontWeight.bold, fontSize: 12)
+                          ),
+                        )
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 4),
+                    Text(_opName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Divider(height: 20),
+                    
+                    Text(
+                      (_opState == "---" || _opState.isEmpty)
+                        ? "$_opCity, $_opCountry"
+                        : "$_opCity, $_opState, $_opCountry",
+                      style: const TextStyle(color: Colors.black87),
+                      overflow: TextOverflow.ellipsis
+                    ),
+                    
+                    Text("Grid: $_opGrid", style: const TextStyle(color: Colors.black87)),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 10),
+
+            // 3. BAND DIAL
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Band", style: AppTheme.sectionHeader),
+                Text(_selectedBand, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+              ],
+            ),
+            const SizedBox(height: 5),
+            RadioDial(
+              value: _bandSliderValue,
+              min: 0,
+              max: (_bandList.length - 1).toDouble(),
+              divisions: _bandList.length - 1, 
+              onChanged: _updateBandFromDial,
+              activeColor: Colors.orange,
+            ),
+            
+            const SizedBox(height: 20),
+
+            // 5. FREQUENCY DIAL
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Frequency", style: AppTheme.sectionHeader),
+                InkWell(
+                  onTap: _showFrequencyInput,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                    child: Row(children: [const Icon(Icons.keyboard, size: 16, color: Colors.blue), const SizedBox(width: 6), Text("${_currentFreq.toStringAsFixed(3)} MHz", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue))]),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                IconButton.filledTonal(onPressed: () => _stepFreq(-1.0), icon: const Icon(Icons.remove), tooltip: "-1 kHz"),
+                Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8.0), child: RadioDial(value: _currentFreq, min: minFreq, max: maxFreq, divisions: ((maxFreq - minFreq) * 1000).toInt(), onChanged: (v) => setState(() => _currentFreq = v), activeColor: Colors.redAccent))),
+                IconButton.filledTonal(onPressed: () => _stepFreq(1.0), icon: const Icon(Icons.add), tooltip: "+1 kHz"),
+              ],
+            ),
+
+            // 4. MODE SELECTOR
+            const Text("Mode", style: AppTheme.sectionHeader),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _showModePicker,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey[400]!), borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.grey[200]!, blurRadius: 4, offset: const Offset(0, 2))]),
+                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(_selectedMode, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const Icon(Icons.arrow_drop_down_circle, color: AppTheme.primaryColor)]),
+              ),
+            ),
+            
+
+            const Divider(height: 40),
+
+            // 6. RST
+            const Text("Signal Report", style: AppTheme.sectionHeader),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _showRstEditor("Sent", _sentRst),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12), // REDUCED PADDING
+                      decoration: AppTheme.activeCard.copyWith(color: Colors.blue[50]),
+                      child: Column(children: [const Text("SENT", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(height: 5), Text(_sentRst.formatted(isCW), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)), const SizedBox(height: 5), const Text("Tap to Edit", style: TextStyle(fontSize: 10, color: Colors.blueGrey))]),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _showRstEditor("Received", _rcvdRst),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12), // REDUCED PADDING
+                      decoration: AppTheme.activeCard.copyWith(color: Colors.green[50], border: Border.all(color: Colors.green, width: 2)),
+                      child: Column(children: [const Text("RCVD", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(height: 5), Text(_rcvdRst.formatted(isCW), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.green)), const SizedBox(height: 5), const Text("Tap to Edit", style: TextStyle(fontSize: 10, color: Colors.blueGrey))]),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20), 
+            
+            // 2. TIME CARD
+            Card(
+              color: _isManualTime ? Colors.amber[50] : Colors.blue[50], 
+              elevation: 0,
+              shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(8)),
+              child: InkWell(
+                onTap: _pickDateTime, 
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.access_time, color: _isManualTime ? Colors.amber[900] : AppTheme.primaryColor),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // UTC Time
+                            Text(
+                              "${_formatDateTime(_logTime, isUtc: true)} UTC",
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                            ),
+                            // Local Time
+                            Text(
+                              "${_formatDateTime(_logTime, isUtc: false)} Local",
+                              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_isManualTime)
+                        IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.blue),
+                          onPressed: _resetToLiveTime,
+                          tooltip: "Reset to Live Clock",
+                        )
+                      else
+                        const Icon(Icons.edit, size: 16, color: Colors.grey),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
