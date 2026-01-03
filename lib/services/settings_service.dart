@@ -7,13 +7,14 @@ class AppSettings {
   static const String keyMyGrid = 'my_grid';
   static const String keyWavelogUrl = 'wavelog_url';
   static const String keyWavelogKey = 'wavelog_key';
+  static const String keyWavelogStationId = 'wavelog_station_id';
   static const String keyHamQthUser = 'hamqth_user';
   static const String keyHamQthPass = 'hamqth_pass';
   static const String keyActiveModes = 'active_modes';
   static const String keyLastBand = 'last_band';
   static const String keyLastFreq = 'last_freq';
   static const String keyLastMode = 'last_mode';
-  
+
   // SAVE STRING
   static Future<void> saveString(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();

@@ -1,3 +1,5 @@
+// FILE: lib/screens/settings_screen.dart
+// ==============================
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
@@ -15,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _gridCtrl = TextEditingController();
   final _wavelogUrlCtrl = TextEditingController();
   final _wavelogKeyCtrl = TextEditingController();
+  final _wavelogStationIdCtrl = TextEditingController(); // <--- NEW
   final _hamqthUserCtrl = TextEditingController();
   final _hamqthPassCtrl = TextEditingController();
 
@@ -33,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String grid = await AppSettings.getString(AppSettings.keyMyGrid);
     String url = await AppSettings.getString(AppSettings.keyWavelogUrl);
     String key = await AppSettings.getString(AppSettings.keyWavelogKey);
+    String stId = await AppSettings.getString(AppSettings.keyWavelogStationId); // <--- NEW
     String hUser = await AppSettings.getString(AppSettings.keyHamQthUser);
     String hPass = await AppSettings.getString(AppSettings.keyHamQthPass);
     List<String> modes = await AppSettings.getModes();
@@ -42,6 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _gridCtrl.text = grid;
       _wavelogUrlCtrl.text = url;
       _wavelogKeyCtrl.text = key;
+      _wavelogStationIdCtrl.text = stId; // <--- NEW
       _hamqthUserCtrl.text = hUser;
       _hamqthPassCtrl.text = hPass;
       _activeModes = modes;
@@ -53,6 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await AppSettings.saveString(AppSettings.keyMyGrid, _gridCtrl.text.toUpperCase());
     await AppSettings.saveString(AppSettings.keyWavelogUrl, _wavelogUrlCtrl.text);
     await AppSettings.saveString(AppSettings.keyWavelogKey, _wavelogKeyCtrl.text);
+    await AppSettings.saveString(AppSettings.keyWavelogStationId, _wavelogStationIdCtrl.text); // <--- NEW
     await AppSettings.saveString(AppSettings.keyHamQthUser, _hamqthUserCtrl.text);
     await AppSettings.saveString(AppSettings.keyHamQthPass, _hamqthPassCtrl.text);
     await AppSettings.saveModes(_activeModes);
@@ -110,8 +116,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildHeader("Wavelog Integration"),
           _buildTextField("Wavelog URL", _wavelogUrlCtrl, hint: "https://log.mysite.com/index.php/api", icon: Icons.link),
           _buildTextField("API Key", _wavelogKeyCtrl, icon: Icons.vpn_key),
+          _buildTextField("Station Profile ID", _wavelogStationIdCtrl, hint: "e.g. 1 (Find in Wavelog URL)", icon: Icons.location_on), // <--- NEW
 
-          _buildHeader("HamQTH Lookup (Worldwide)"),
+          _buildHeader("Lookup Credentials (QRZ / HamQTH)"),
           _buildTextField("Username", _hamqthUserCtrl, icon: Icons.person),
           _buildTextField("Password", _hamqthPassCtrl, obscure: true, icon: Icons.lock),
           
