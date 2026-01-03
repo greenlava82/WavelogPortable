@@ -1,4 +1,4 @@
-# k1glv_WavelogLogger
+# k1glv_WavelogApp
 
 A new Flutter project.
 
