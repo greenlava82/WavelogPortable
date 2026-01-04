@@ -4,6 +4,16 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
 import '../models/rst_report.dart';
+import '../models/previous_qso.dart';
+
+// Define a simple class to hold the lookup result
+class LookupResult {
+  final bool isWorked;          // Have I ever worked them?
+  final bool isWorkedBand;      // Have I worked them on THIS band?
+  final bool isWorkedMode;      // Have I worked them on THIS band & mode? (Strict Dupe)
+
+  LookupResult({this.isWorked = false, this.isWorkedBand = false, this.isWorkedMode = false});
+}
 
 class WavelogService {
   
@@ -150,5 +160,49 @@ class WavelogService {
       print("Wavelog Network Error: $e");
       return false;
     }
+  }
+
+  // --- NEW: Private Lookup (Dupe Check) ---
+  static Future<LookupResult> checkDupe(String callsign, String band, String mode) async {
+    String baseUrl = await AppSettings.getString(AppSettings.keyWavelogUrl);
+    String apiKey = await AppSettings.getString(AppSettings.keyWavelogKey);
+
+    if (baseUrl.isEmpty || apiKey.isEmpty) return LookupResult();
+    if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
+
+    // Construct URL: .../index.php/api/private_lookup
+    final Uri apiUri = Uri.parse("$baseUrl/private_lookup");
+
+    Map<String, dynamic> payload = {
+      "key": apiKey,
+      "callsign": callsign,
+      "band": band,
+      "mode": mode
+    };
+
+    try {
+      print("DEBUG: Checking Dupe -> $apiUri");
+      final response = await http.post(
+        apiUri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print("DEBUG: Lookup Result: $data");
+        
+        return LookupResult(
+          isWorked: data['call_worked'] ?? false,
+          isWorkedBand: data['call_worked_band'] ?? false,
+          isWorkedMode: data['call_worked_band_mode'] ?? false,
+        );
+      } else {
+        print("DEBUG: Lookup Failed (${response.statusCode})");
+      }
+    } catch (e) {
+      print("DEBUG: Lookup Error: $e");
+    }
+    return LookupResult();
   }
 }
