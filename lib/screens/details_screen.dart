@@ -137,6 +137,8 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     double stepSize = 0.001; // 1 kHz
 
     double newFreq = _currentFreq + (sign * stepSize);
+    newFreq = double.parse(newFreq.toStringAsFixed(3));
+
     if (newFreq < min) newFreq = min;
     if (newFreq > max) newFreq = max;
 
