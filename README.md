@@ -85,7 +85,7 @@ Before you start logging, you must configure the app. Tap the **Settings (Gear I
 * [x] **Settings:** Implement "Fetch Station ID" button to populate a dropdown menu from Wavelog API.
 * [ ] **Details UI:** Add input fields for **POTA Ref**, **SOTA Ref**, and **Comments**.
 * [ ] **ADIF Export:** Update WavelogService to include the new POTA/SOTA/Comment tags in the upload.
-* [ ] **QSO History:** Query Wavelog for previous contacts with the current callsign and display a "History" indicator/list.
+* [x] **QSO History:** Query Wavelog for previous contacts with the current callsign and display a "History" indicator/list.
 
 ### Future
 * [ ] **Local Database:** SQLite storage for offline history.
