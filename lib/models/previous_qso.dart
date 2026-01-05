@@ -12,7 +12,6 @@ class PreviousQso {
   });
 
   factory PreviousQso.fromJson(Map<String, dynamic> json) {
-    // Helper for robust key finding
     String val(List<String> keys, [String defaultVal = '']) {
       for (var key in keys) {
         if (json[key] != null && json[key].toString().isNotEmpty) {

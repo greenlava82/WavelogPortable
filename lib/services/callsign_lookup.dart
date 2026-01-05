@@ -1,5 +1,3 @@
-// FILE: lib/services/callsign_lookup.dart
-// ==============================
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
@@ -35,7 +33,6 @@ class HamProfile {
     );
   }
 
-  // --- FACTORY: FROM CALLOOK (JSON) ---
   factory HamProfile.fromCallook(Map<String, dynamic> json) {
     final current = json['current'] ?? {};
     final address = json['address'] ?? {};
@@ -60,7 +57,6 @@ class HamProfile {
     );
   }
 
-  // --- FACTORY: FROM QRZ XML ---
   factory HamProfile.fromQrzXml(String xml) {
     String getTag(String tag) {
       final RegExp regExp = RegExp('<$tag>(.*?)</$tag>');
@@ -68,9 +64,6 @@ class HamProfile {
       return match?.group(1) ?? "";
     }
 
-    // QRZ Specific Tags
-    // <fname> = First Name, <name> = Last Name. 
-    // Sometimes people put full name in <name>. Let's combine nicely.
     String first = getTag('fname');
     String last = getTag('name');
     String fullName = "$first $last".trim();
@@ -79,7 +72,7 @@ class HamProfile {
     return HamProfile(
       callsign: getTag('call').toUpperCase(),
       name: fullName,
-      licenseClass: getTag('class'), // QRZ actually gives us the class! (E, G, T, etc)
+      licenseClass: getTag('class'),
       city: getTag('addr2'),
       state: getTag('state'), 
       country: getTag('country'),
@@ -89,22 +82,20 @@ class HamProfile {
 }
 
 class CallsignLookup {
-  // We reuse the HamQTH keys for QRZ since they serve the same purpose (Username/Password)
-  // To avoid breaking your Settings file, we just read the same keys.
   static String? _qrzSessionKey;
 
   static Future<HamProfile> fetch(String callsign) async {
-    // 1. STRATEGY: Try Callook for US calls (It's faster and free)
+    // 1. Try Callook for US calls (Faster, Free)
     if (_isLikelyUS(callsign)) {
       try {
         HamProfile profile = await _fetchCallook(callsign);
         if (profile.name != "Not Found") return profile;
       } catch (e) {
-        print("Callook failed ($e). Falling back to QRZ...");
+        // Fallback to QRZ
       }
     }
 
-    // 2. STRATEGY: Fallback to QRZ XML (Worldwide & Backup)
+    // 2. Fallback to QRZ (Global)
     return await _fetchQrz(callsign);
   }
 
@@ -112,7 +103,6 @@ class CallsignLookup {
     return RegExp(r'^[AKNW][a-zA-Z]?[0-9][a-zA-Z]*$').hasMatch(call.toUpperCase());
   }
 
-  // --- PROVIDER 1: CALLOOK ---
   static Future<HamProfile> _fetchCallook(String callsign) async {
     final url = Uri.parse('https://callook.info/$callsign/json');
     final response = await http.get(url);
@@ -125,69 +115,46 @@ class CallsignLookup {
     return HamProfile.empty();
   }
 
-  // --- PROVIDER 2: QRZ XML ---
   static Future<HamProfile> _fetchQrz(String callsign) async {
-    // REUSING HAMQTH KEYS from Settings so you don't have to rebuild the Settings Screen
     String user = await AppSettings.getString(AppSettings.keyHamQthUser);
     String pass = await AppSettings.getString(AppSettings.keyHamQthPass);
 
-    if (user.isEmpty || pass.isEmpty) {
-      print("QRZ skipped: No credentials in Settings.");
-      return HamProfile.empty();
-    }
+    if (user.isEmpty || pass.isEmpty) return HamProfile.empty();
 
-    // Ensure Login
     if (_qrzSessionKey == null) {
       bool loggedIn = await _performQrzLogin(user, pass);
       if (!loggedIn) return HamProfile.empty();
     }
 
     try {
-      // QRZ Lookup URL
       final url = Uri.parse("https://xmldata.qrz.com/xml/current/?s=$_qrzSessionKey&callsign=$callsign");
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         String xml = response.body;
 
-        // DEBUG PRINT
-        print("------------------------------------------------");
-        print("QRZ XML RESPONSE FOR $callsign:");
-        print(xml); 
-        print("------------------------------------------------");
-
-        // Check for Errors / Session Timeout
         if (xml.contains('<Error>')) {
-           final RegExp errorRegex = RegExp(r'<Error>(.*?)</Error>');
-           final match = errorRegex.firstMatch(xml);
-           String errorMsg = match?.group(1)?.toLowerCase() ?? "";
-           
-           print("QRZ Error: $errorMsg");
-
-           if (errorMsg.contains('session') || errorMsg.contains('expired')) {
-             print("QRZ Session Expired. Re-logging...");
+           if (xml.toLowerCase().contains('session') || xml.toLowerCase().contains('expired')) {
              _qrzSessionKey = null;
              if (await _performQrzLogin(user, pass)) {
-               return _fetchQrz(callsign); // Retry once
+               return _fetchQrz(callsign); // Retry
              }
            }
            return HamProfile.empty();
         }
 
-        // Success?
         if (xml.contains('<call>')) {
            return HamProfile.fromQrzXml(xml);
         }
       }
     } catch (e) {
-      print("QRZ Network Error: $e");
+      // Network Error
     }
     return HamProfile.empty();
   }
 
   static Future<bool> _performQrzLogin(String user, String pass) async {
     try {
-      // QRZ Login URL
       final url = Uri.parse("https://xmldata.qrz.com/xml/current/?username=$user&password=$pass");
       final response = await http.get(url);
       
@@ -196,14 +163,11 @@ class CallsignLookup {
         final match = keyRegex.firstMatch(response.body);
         if (match != null) {
           _qrzSessionKey = match.group(1);
-          print("QRZ Login Successful.");
           return true;
-        } else {
-          print("QRZ Login Failed: No Key found in response.");
         }
       }
     } catch (e) {
-      print("QRZ Login Network Error: $e");
+      // Login Error
     }
     return false;
   }
