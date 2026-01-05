@@ -1,12 +1,11 @@
-// FILE: lib/screens/details_screen.dart
-// ==============================
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/rst_report.dart';
+import '../models/lookup_result.dart';
 import '../widgets/radio_dial.dart';
 import '../services/callsign_lookup.dart';
-import '../services/wavelog_service.dart'; // Contains LookupResult & checkDupe
+import '../services/wavelog_service.dart';
 import '../services/settings_service.dart';
 
 class QsoDetailsScreen extends StatefulWidget {
@@ -18,22 +17,22 @@ class QsoDetailsScreen extends StatefulWidget {
 }
 
 class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
-  // --- BAND & FREQUENCY STATE ---
+  // Band & Freq
   final List<String> _bandList = bandPlan.keys.toList();
-  double _bandSliderValue = 5.0; // Default to index 5 (20m)
+  double _bandSliderValue = 5.0; // Default: 20m
   String _selectedBand = '20m';
   double _currentFreq = 14.074;
   
-  // --- MODE STATE ---
+  // Mode
   List<String> _activeModes = [];
   String _selectedMode = 'SSB';
 
-  // --- TIME STATE ---
+  // Time
   DateTime _logTime = DateTime.now();
-  bool _isManualTime = false; // If true, clock stops ticking
+  bool _isManualTime = false;
   Timer? _timer;
 
-  // --- USER DATA STATE ---
+  // Profile Data
   String _opName = "Loading..."; 
   String _opClass = "...";
   String _opCity = "Loading...";
@@ -41,11 +40,9 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   String _opCountry = "";
   String _opGrid = "Loading...";
 
-  // --- HISTORY STATE ---
+  // History & Reports
   bool _isLoadingHistory = true;
   LookupResult _historyStatus = LookupResult(); 
-
-  // --- RST STATE ---
   final RstReport _sentRst = RstReport();
   final RstReport _rcvdRst = RstReport();
 
@@ -55,10 +52,9 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     _performLookup(); 
     _loadPreferences(); 
     
-    // Defer history check slightly to ensure preferences might be loaded
+    // Defer history check slightly
     Future.delayed(Duration.zero, () => _checkHistory()); 
     
-    // Start the clock - Ticks every second
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isManualTime && mounted) {
         setState(() {
@@ -74,13 +70,10 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     super.dispose();
   }
 
-  // --- LOGIC: CHECK HISTORY (Dupe Check) ---
   Future<void> _checkHistory() async {
     if (!mounted) return;
-
     setState(() => _isLoadingHistory = true);
 
-    // Call the private_lookup endpoint
     var result = await WavelogService.checkDupe(
       widget.callsign, 
       _selectedBand, 
@@ -95,7 +88,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     }
   }
 
-  // --- LOGIC: LOAD SETTINGS ---
   Future<void> _loadPreferences() async {
     List<String> savedModes = await AppSettings.getModes();
     Map<String, dynamic> lastState = await AppSettings.getLastRadioState();
@@ -104,31 +96,25 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       setState(() {
         _activeModes = savedModes;
         
-        // Restore Band
         if (lastState['band'] != null && _bandList.contains(lastState['band'])) {
           _selectedBand = lastState['band'];
           _bandSliderValue = _bandList.indexOf(_selectedBand).toDouble();
         }
 
-        // Restore Frequency
         if (lastState['freq'] != null) {
           _currentFreq = lastState['freq'];
         }
 
-        // Restore Mode
         if (lastState['mode'] != null && _activeModes.contains(lastState['mode'])) {
           _selectedMode = lastState['mode'];
         } else if (!_activeModes.contains(_selectedMode) && _activeModes.isNotEmpty) {
           _selectedMode = _activeModes.first;
         }
       });
-      
-      // Re-run history check now that we have the "last used" band/mode
       _checkHistory();
     }
   }
 
-  // --- LOGIC: CALLSIGN LOOKUP ---
   Future<void> _performLookup() async {
     setState(() {
       _opName = "Looking up...";
@@ -151,7 +137,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     }
   }
 
-  // --- LOGIC: FREQUENCY & BAND ---
   void _updateBandFromDial(double sliderValue) {
     int index = sliderValue.round();
     String newBand = _bandList[index];
@@ -160,19 +145,15 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       _selectedBand = newBand;
       _currentFreq = bandPlan[newBand]![2]; 
     });
-    
-    // Trigger history check because Band changed
     _checkHistory();
   }
 
   void _stepFreq(double sign) {
     double min = bandPlan[_selectedBand]![0];
     double max = bandPlan[_selectedBand]![1];
-    double stepSize = 0.001; // 1 kHz
+    double stepSize = 0.001; 
 
     double newFreq = _currentFreq + (sign * stepSize);
-
-    // Prevent floating point drift
     newFreq = double.parse(newFreq.toStringAsFixed(3));
 
     if (newFreq < min) newFreq = min;
@@ -192,7 +173,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
 
   // --- UI DIALOGS ---
 
-  // 1. Time Picker
   Future<void> _pickDateTime() async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
@@ -225,7 +205,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     });
   }
 
-  // 2. Frequency Input
   void _showFrequencyInput() {
     String buffer = ""; 
     
@@ -264,7 +243,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                               _bandSliderValue = _bandList.indexOf(targetBand).toDouble();
                               _currentFreq = newFreq!;
                             });
-                            _checkHistory(); // Band changed implicitly
+                            _checkHistory(); 
                             Navigator.pop(context);
                           } else {
                              ScaffoldMessenger.of(context).showSnackBar(
@@ -319,7 +298,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     );
   }
 
-  // 3. Mode Picker
   void _showModePicker() {
     showDialog(
       context: context,
@@ -332,7 +310,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               onPressed: () {
                 setState(() => _selectedMode = mode);
                 Navigator.pop(context);
-                _checkHistory(); // Mode changed
+                _checkHistory();
               },
               child: Text(mode, style: const TextStyle(fontSize: 18)),
             );
@@ -342,7 +320,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     );
   }
 
-  // 4. RST Editor
   void _showRstEditor(String title, RstReport report) {
     bool isCW = _selectedMode == 'CW';
     showDialog(
@@ -373,16 +350,13 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     );
   }
 
-  // --- HELPER: FORMAT DATE ---
   String _formatDateTime(DateTime dt, {bool isUtc = false}) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     DateTime t = isUtc ? dt.toUtc() : dt;
     return "${t.year}-${twoDigits(t.month)}-${twoDigits(t.day)} ${twoDigits(t.hour)}:${twoDigits(t.minute)}:${twoDigits(t.second)}";
   }
 
-  // --- HELPER: BUILD HISTORY BADGE ---
   Widget _buildHistoryBadge() {
-    // 1. Loading State
     if (_isLoadingHistory) {
       return const SizedBox(
         width: 16, height: 16, 
@@ -390,16 +364,10 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       );
     }
 
-    // Common styling matches License Badge: vertical 4, font 12
     const EdgeInsets badgePadding = EdgeInsets.symmetric(horizontal: 8, vertical: 4);
     const double fontSize = 12.0;
-
-    // 2. CHECK IF WORKED AT ALL
-    // If we have worked them (on any band/mode), we show WORKED.
-    // If not, we show NEW.
     
     if (_historyStatus.isWorked) {
-      // --- WORKED BADGE ---
       return Container(
         padding: badgePadding,
         decoration: BoxDecoration(
@@ -417,7 +385,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         ),
       );
     } else {
-      // --- NEW CONTACT BADGE ---
       return Container(
         padding: badgePadding,
         decoration: BoxDecoration(
@@ -432,24 +399,21 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     }
   }
 
-  // --- SUBMIT LOG ---
   Future<void> _submitLog() async {
-    bool isCW = _selectedMode == 'CW';
-    
-    // Clean up floating point artifacts
     double cleanFreq = double.parse(_currentFreq.toStringAsFixed(3));
+    DateTime utcTime = _logTime.toUtc();
 
-    // 1. Save state for next time
+    // 1. Save state (Async)
     await AppSettings.saveRadioState(_selectedBand, _currentFreq, _selectedMode);
 
-    // 2. Prepare Data (UTC)
-    DateTime utcTime = _logTime.toUtc();
+    // FIX: Guard check added here because of the async gap above
+    if (!mounted) return; 
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Logging to Wavelog...'), duration: Duration(milliseconds: 500)),
     );
 
-    // 3. Send to Wavelog
+    // 2. Network Request (Async)
     bool success = await WavelogService.postQso(
       callsign: widget.callsign,
       band: _selectedBand,
@@ -462,6 +426,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       name: _opName,
     );
 
+    // 3. Final Guard check (Existing)
     if (!mounted) return;
 
     if (success) {
@@ -497,7 +462,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. USER DATA CARD
             Card(
               color: Colors.white,
               elevation: 2,
@@ -515,7 +479,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                           style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)
                         ),
                         
-                        // Cancel Button
                         Padding(
                           padding: const EdgeInsets.only(left: 8.0),
                           child: IconButton(
@@ -529,12 +492,10 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
 
                         const Spacer(), 
 
-                        // History Badge
                         _buildHistoryBadge(),
                         
                         const SizedBox(width: 8), 
 
-                        // License Class Badge
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
@@ -552,7 +513,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                     
                     const SizedBox(height: 4),
                     
-                    // Name Row
                     Text(_opName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
 
                     const Divider(height: 20),
@@ -573,7 +533,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             
             const SizedBox(height: 10),
 
-            // 3. BAND DIAL
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -593,7 +552,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             
             const SizedBox(height: 20),
 
-            // 5. FREQUENCY DIAL
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -617,7 +575,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               ],
             ),
 
-            // 4. MODE SELECTOR
             const Text("Mode", style: AppTheme.sectionHeader),
             const SizedBox(height: 8),
             GestureDetector(
@@ -631,7 +588,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
 
             const Divider(height: 40),
 
-            // 6. RST
             const Text("Signal Report", style: AppTheme.sectionHeader),
             const SizedBox(height: 10),
             Row(
@@ -661,7 +617,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             ),
             const SizedBox(height: 20), 
             
-            // 2. TIME CARD
             Card(
               color: _isManualTime ? Colors.amber[50] : Colors.blue[50], 
               elevation: 0,
@@ -679,12 +634,10 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // UTC Time
                             Text(
                               "${_formatDateTime(_logTime, isUtc: true)} UTC",
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
                             ),
-                            // Local Time
                             Text(
                               "${_formatDateTime(_logTime, isUtc: false)} Local",
                               style: TextStyle(fontSize: 12, color: Colors.grey[700]),

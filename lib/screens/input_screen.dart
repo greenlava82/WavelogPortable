@@ -11,7 +11,6 @@ class CallsignInputScreen extends StatefulWidget {
 class _CallsignInputScreenState extends State<CallsignInputScreen> {
   final TextEditingController _callsignController = TextEditingController();
   
-  // Keyboard Layout
   final List<List<String>> _keyboardRows = [
     ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
     ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
@@ -25,16 +24,14 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
         if (_callsignController.text.isNotEmpty) {
           _callsignController.text = _callsignController.text.substring(0, _callsignController.text.length - 1);
         }
-} else if (value == 'ENT') {
+      } else if (value == 'ENT') {
         if (_callsignController.text.isEmpty) return;
         
-        // 1. Wait for the details screen to close
-        // We use 'await' to pause here until the user comes back
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => QsoDetailsScreen(callsign: _callsignController.text)),
         ).then((result) {
-          // 2. Check if they actually logged a contact (result == true)
+          // Clear only if contact was logged successfully
           if (result == true) {
             setState(() {
               _callsignController.clear();
@@ -48,7 +45,6 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
     });
   }
 
-  // Helper to style special keys differently
   Widget _buildButtonContent(String key) {
     if (key == 'DEL') return const Icon(Icons.backspace_outlined, size: 24);
     if (key == 'ENT') return const Icon(Icons.arrow_forward, size: 28);
@@ -57,7 +53,6 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Check if we need to show the clear button
     bool showClear = _callsignController.text.isNotEmpty;
 
     return Scaffold(
@@ -79,22 +74,19 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
       ),
       body: Column(
         children: [
-          // --- DISPLAY AREA WITH CLEAR BUTTON ---
           Expanded(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40.0), // Padding for the X button
+                padding: const EdgeInsets.symmetric(horizontal: 40.0),
                 child: TextField(
                   controller: _callsignController,
-                  readOnly: true, // Disables system keyboard
+                  readOnly: true, 
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, letterSpacing: 2),
                   decoration: InputDecoration(
                     hintText: "CALLSIGN",
                     hintStyle: TextStyle(color: Colors.grey[300]),
                     border: InputBorder.none,
-                    
-                    // THE NEW CLEAR BUTTON
                     suffixIcon: showClear 
                       ? IconButton(
                           icon: const Icon(Icons.cancel, color: Colors.grey, size: 30),
@@ -111,7 +103,6 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
             ),
           ),
           
-          // --- KEYBOARD AREA ---
           SafeArea(
             top: false, bottom: true,
             child: Container(
@@ -130,7 +121,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
                           backgroundColor: (key == 'DEL' || key == 'ENT') ? Colors.blueGrey[200] : Colors.white,
                           foregroundColor: Colors.black,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          elevation: 1, // Slight shadow for buttons
+                          elevation: 1,
                         ),
                         child: _buildButtonContent(key),
                       ),
