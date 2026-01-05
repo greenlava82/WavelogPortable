@@ -1,9 +1,7 @@
-// FILE: lib/screens/settings_screen.dart
-// ==============================
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
-import '../services/wavelog_service.dart'; // Import the service
+import '../services/wavelog_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,20 +11,15 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Controllers for text fields
   final _callsignCtrl = TextEditingController();
   final _gridCtrl = TextEditingController();
   final _wavelogUrlCtrl = TextEditingController();
   final _wavelogKeyCtrl = TextEditingController();
-  // REMOVED: _wavelogStationIdCtrl (Replaced by Dropdown logic)
-  
   final _hamqthUserCtrl = TextEditingController();
   final _hamqthPassCtrl = TextEditingController();
 
-  // Mode State
   List<String> _activeModes = [];
   
-  // Station ID State
   String? _selectedStationId;
   List<Map<String, String>> _availableStations = [];
   bool _isLoadingStations = false;
@@ -56,10 +49,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _hamqthPassCtrl.text = hPass;
       _activeModes = modes;
       
-      // Initialize Station ID
       if (stId.isNotEmpty) {
         _selectedStationId = stId;
-        // Add a temporary "saved" item so the dropdown isn't empty before we fetch
         _availableStations = [{'id': stId, 'name': 'Saved ID: $stId (Tap Refresh)'}];
       }
     });
@@ -73,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isLoadingStations = true);
 
-    // Call the Service
     List<Map<String, String>> stations = await WavelogService.fetchStations(
       _wavelogUrlCtrl.text, 
       _wavelogKeyCtrl.text
@@ -84,8 +74,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (stations.isNotEmpty) {
         _availableStations = stations;
         
-        // If our currently selected ID isn't in the new list, clear it (or keep it?)
-        // Let's try to keep it if it exists, otherwise default to the first one.
         bool found = stations.any((s) => s['id'] == _selectedStationId);
         if (!found) {
           _selectedStationId = stations.first['id'];
@@ -103,10 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await AppSettings.saveString(AppSettings.keyMyGrid, _gridCtrl.text.toUpperCase());
     await AppSettings.saveString(AppSettings.keyWavelogUrl, _wavelogUrlCtrl.text);
     await AppSettings.saveString(AppSettings.keyWavelogKey, _wavelogKeyCtrl.text);
-    
-    // Save the ID from the dropdown
     await AppSettings.saveString(AppSettings.keyWavelogStationId, _selectedStationId ?? "");
-    
     await AppSettings.saveString(AppSettings.keyHamQthUser, _hamqthUserCtrl.text);
     await AppSettings.saveString(AppSettings.keyHamQthPass, _hamqthPassCtrl.text);
     await AppSettings.saveModes(_activeModes);
@@ -163,7 +148,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildTextField("Wavelog URL", _wavelogUrlCtrl, hint: "https://log.mysite.com/index.php/api", icon: Icons.link),
           _buildTextField("API Key", _wavelogKeyCtrl, icon: Icons.vpn_key),
           
-          // --- NEW: Station ID Picker ---
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: InputDecorator(
@@ -202,7 +186,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          // ---------------------------------
 
           _buildHeader("Lookup Credentials (QRZ / HamQTH)"),
           _buildTextField("Username", _hamqthUserCtrl, icon: Icons.person),

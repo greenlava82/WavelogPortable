@@ -22,7 +22,6 @@ class RadioDial extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // The Dial Container - REDUCED HEIGHT TO 30 (50%)
         Container(
           height: 30, 
           decoration: BoxDecoration(
@@ -34,13 +33,10 @@ class RadioDial extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // LAYER 1: The Ruler
               CustomPaint(
                 size: const Size(double.infinity, 30),
                 painter: _RulerPainter(color: Colors.white24),
               ),
-              
-              // LAYER 2: The Slider
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 0, 
@@ -66,7 +62,6 @@ class RadioDial extends StatelessWidget {
   }
 }
 
-// --- PAINTER: SCALED DOWN RULER ---
 class _RulerPainter extends CustomPainter {
   final Color color;
   _RulerPainter({required this.color});
@@ -75,14 +70,13 @@ class _RulerPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
       ..color = color
-      ..strokeWidth = 1.0; // Thinner lines for smaller scale
+      ..strokeWidth = 1.0;
 
     const int tickCount = 20;
     final double step = size.width / tickCount;
 
     for (int i = 0; i <= tickCount; i++) {
       double x = i * step;
-      // Height scaled down: 5th line is 15px, others are 6px
       double height = (i % 5 == 0) ? 15.0 : 6.0; 
       canvas.drawLine(Offset(x, size.height), Offset(x, size.height - height), paint);
     }
@@ -92,7 +86,6 @@ class _RulerPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// --- SHAPE: SCALED DOWN NEEDLE ---
 class _NeedleThumbShape extends SliderComponentShape {
   final Color color;
   const _NeedleThumbShape({required this.color});
@@ -114,9 +107,8 @@ class _NeedleThumbShape extends SliderComponentShape {
     required Size sizeWithOverflow,
   }) {
     final Canvas canvas = context.canvas;
-    final Paint paint = Paint()..color = color..strokeWidth = 2; // Slightly thinner needle
+    final Paint paint = Paint()..color = color..strokeWidth = 2;
     
-    // Draw vertical line +/- 14px from center (fits in 30px height)
     canvas.drawLine(
       Offset(center.dx, center.dy - 14), 
       Offset(center.dx, center.dy + 14), 
