@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
 import '../services/wavelog_service.dart';
+import '../services/database_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -191,6 +192,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildTextField("Username", _hamqthUserCtrl, icon: Icons.person),
           _buildTextField("Password", _hamqthPassCtrl, obscure: true, icon: Icons.lock),
           
+
+          _buildHeader("Databases"),
+          ListTile(
+            title: const Text("Download POTA/SOTA Databases"),
+            subtitle: const Text("Required for offline search"),
+            leading: const Icon(Icons.cloud_download),
+            onTap: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Starting Download... Check Debug Console"), duration: Duration(seconds: 2))
+              );
+              
+              await DatabaseService().updateAllDatabases((status) {
+                // Ideally show this in a dialog, but print for now
+                print("DB STATUS: $status");
+              });
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Database Update Complete!"), backgroundColor: Colors.green)
+                );
+              }
+            },
+          ),
           const SizedBox(height: 80),
         ],
       ),
