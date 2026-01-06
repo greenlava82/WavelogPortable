@@ -561,7 +561,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                    child: Row(children: [const Icon(Icons.keyboard, size: 16, color: Colors.blue), const SizedBox(width: 6), Text("${_currentFreq.toStringAsFixed(3)} MHz", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue))]),
+                    child: Row(children: [const Icon(Icons.keyboard, size: 16, color: AppTheme.primaryColor), const SizedBox(width: 6), Text("${_currentFreq.toStringAsFixed(3)} MHz", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor))]),
                   ),
                 ),
               ],
@@ -598,7 +598,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
                       decoration: AppTheme.activeCard.copyWith(color: Colors.blue[50]),
-                      child: Column(children: [const Text("SENT", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(height: 5), Text(_sentRst.formatted(isCW), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)), const SizedBox(height: 5), const Text("Tap to Edit", style: TextStyle(fontSize: 10, color: Colors.blueGrey))]),
+                      child: Column(children: [const Text("SENT", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(height: 5), Text(_sentRst.formatted(isCW), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.blue)), const SizedBox(height: 5), const Text("Tap to Edit", style: TextStyle(fontSize: 10, color: Colors.blueGrey))]),
                     ),
                   ),
                 ),
