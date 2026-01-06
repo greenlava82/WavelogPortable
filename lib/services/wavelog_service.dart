@@ -1,3 +1,5 @@
+// FILE: lib/services/wavelog_service.dart
+// ==============================
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
@@ -21,7 +23,6 @@ class WavelogService {
         body: jsonEncode({"key": apiKey}),
       );
 
-      // Fallback to GET if POST fails (common with some Wavelog/CI versions)
       if (response.statusCode == 401 || response.statusCode == 404 || response.statusCode == 405) {
         final Uri getUri = Uri.parse("$baseUrl/station_info/$apiKey");
         response = await http.get(getUri);
@@ -53,7 +54,9 @@ class WavelogService {
     required RstReport rstSent,
     required RstReport rstRcvd,
     String? grid, 
-    String? name, 
+    String? name,
+    String? potaList,
+    String? sotaRef,
   }) async {
     
     String baseUrl = await AppSettings.getString(AppSettings.keyWavelogUrl);
@@ -99,7 +102,24 @@ class WavelogService {
     if (grid != null && grid != "---") add("GRIDSQUARE", grid);
     if (name != null && name != "Not Found") add("NAME", name);
     
+    // --- UPDATED: Use Application-Specific tags for Wavelog ---
+    
+    // POTA_REF is commonly used by Wavelog/HamRS to populate the specific column
+    if (potaList != null && potaList.isNotEmpty) {
+      add("POTA_REF", potaList); 
+    }
+
+    // SOTA_REF is the standard ADIF tag
+    if (sotaRef != null && sotaRef.isNotEmpty) {
+      add("SOTA_REF", sotaRef);   
+    }
+    
     adif.write("<EOR>"); 
+
+    print("------------------------------------------------");
+    print("DEBUG ADIF PAYLOAD:");
+    print(adif.toString());
+    print("------------------------------------------------");
 
     Map<String, dynamic> payload = {
       "key": apiKey,
@@ -114,6 +134,8 @@ class WavelogService {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
+
+      print("Wavelog Response Code: ${response.statusCode}");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;
