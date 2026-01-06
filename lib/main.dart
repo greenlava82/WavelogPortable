@@ -12,7 +12,7 @@ class HamLoggerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'K1GLV Wavelog Mobile',
+      title: 'Wavelog Portable',
       theme: ThemeData(
         useMaterial3: true,
         primaryColor: AppTheme.primaryColor,

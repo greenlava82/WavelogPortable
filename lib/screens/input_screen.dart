@@ -59,7 +59,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
 
     return Scaffold(
     appBar: AppBar(
-        title: const Text('K1GLV Wavelog Mobile'), 
+        title: const Text('Wavelog Portable'), 
         backgroundColor:  AppTheme.primaryColor, 
         foregroundColor: Colors.white,
         actions: [
