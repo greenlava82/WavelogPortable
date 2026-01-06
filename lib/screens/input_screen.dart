@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'details_screen.dart';
 import 'settings_screen.dart';
+import '../config/theme.dart';
+
 
 class CallsignInputScreen extends StatefulWidget {
   const CallsignInputScreen({super.key});
@@ -57,8 +59,8 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
 
     return Scaffold(
     appBar: AppBar(
-        title: const Text('K1GLV Logger'), 
-        backgroundColor: const Color(0xFF1565C0), 
+        title: const Text('K1GLV Wavelog Mobile'), 
+        backgroundColor:  AppTheme.primaryColor, 
         foregroundColor: Colors.white,
         actions: [
           IconButton(
