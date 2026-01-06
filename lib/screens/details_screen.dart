@@ -1,15 +1,19 @@
+// FILE: lib/screens/details_screen.dart
+// ==============================
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import '../config/theme.dart';
 import '../models/rst_report.dart';
 import '../models/lookup_result.dart';
+import '../models/activity_ref.dart';
 import '../widgets/radio_dial.dart';
+import '../widgets/location_map_dialog.dart';
+import '../widgets/activity_selection_dialog.dart';
 import '../services/callsign_lookup.dart';
 import '../services/wavelog_service.dart';
 import '../services/settings_service.dart';
-import 'package:latlong2/latlong.dart';
 import '../utils/maidenhead.dart';
-import '../widgets/location_map_dialog.dart';
 
 class QsoDetailsScreen extends StatefulWidget {
   final String callsign;
@@ -29,6 +33,9 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   // Mode
   List<String> _activeModes = [];
   String _selectedMode = 'SSB';
+
+  // Activations (POTA/SOTA)
+  List<ActivityRef> _activeActivations = [];
 
   // Time
   DateTime _logTime = DateTime.now();
@@ -71,26 +78,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  void _showMap() {
-    // 1. Try to convert grid to LatLng
-    LatLng? target = MaidenheadLocator.toLatLng(_opGrid);
-
-    if (target != null) {
-      showDialog(
-        context: context,
-        builder: (context) => LocationMapDialog(
-          center: target, 
-          callsign: widget.callsign, 
-          grid: _opGrid
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Invalid Grid for Map")),
-      );
-    }
   }
 
   Future<void> _checkHistory() async {
@@ -373,6 +360,40 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     );
   }
 
+  // --- MAP LOGIC ---
+  void _showMap() {
+    LatLng? target = MaidenheadLocator.toLatLng(_opGrid);
+    
+    if (target != null) {
+      showDialog(
+        context: context,
+        builder: (context) => LocationMapDialog(
+          center: target, 
+          callsign: widget.callsign, 
+          grid: _opGrid
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Invalid Grid for Map")),
+      );
+    }
+  }
+
+  // --- ACTIVITY SELECTION LOGIC ---
+  Future<void> _showActivityDialog() async {
+    final result = await showDialog<List<ActivityRef>>(
+      context: context,
+      builder: (context) => ActivitySelectionDialog(selected: _activeActivations),
+    );
+
+    if (result != null) {
+      setState(() {
+        _activeActivations = result;
+      });
+    }
+  }
+
   String _formatDateTime(DateTime dt, {bool isUtc = false}) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     DateTime t = isUtc ? dt.toUtc() : dt;
@@ -429,14 +450,17 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     // 1. Save state (Async)
     await AppSettings.saveRadioState(_selectedBand, _currentFreq, _selectedMode);
 
-    // FIX: Guard check added here because of the async gap above
     if (!mounted) return; 
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Logging to Wavelog...'), duration: Duration(milliseconds: 500)),
     );
 
-    // 2. Network Request (Async)
+    // 2. Prepare Activity Data (POTA/SOTA)
+    List<String> potaRefs = _activeActivations.where((a) => a.type == 'POTA').map((a) => a.reference).toList();
+    List<String> sotaRefs = _activeActivations.where((a) => a.type == 'SOTA').map((a) => a.reference).toList();
+
+    // 3. Network Request
     bool success = await WavelogService.postQso(
       callsign: widget.callsign,
       band: _selectedBand,
@@ -447,9 +471,11 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       rstRcvd: _rcvdRst,
       grid: _opGrid,
       name: _opName,
+      // Pass the POTA/SOTA data to the service
+      potaList: potaRefs.join(','), 
+      sotaRef: sotaRefs.isNotEmpty ? sotaRefs.first : null,
     );
 
-    // 3. Final Guard check (Existing)
     if (!mounted) return;
 
     if (success) {
@@ -485,6 +511,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // USER CARD
             Card(
               color: Colors.white,
               elevation: 2,
@@ -548,11 +575,11 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                       overflow: TextOverflow.ellipsis
                     ),
                     
+                    // Grid & Map Button
                     Row(
                       children: [
                         Text("Grid: $_opGrid", style: const TextStyle(color: Colors.black87)),
                         const SizedBox(width: 8),
-                        // Only show button if we have a valid-looking grid (4 chars minimum)
                         if (_opGrid.length >= 4 && _opGrid != "Loading...")
                           SizedBox(
                             height: 24, 
@@ -572,6 +599,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             
             const SizedBox(height: 10),
 
+            // BAND DIAL
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -591,6 +619,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             
             const SizedBox(height: 20),
 
+            // FREQ DIAL
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -614,19 +643,75 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               ],
             ),
 
-            const Text("Mode", style: AppTheme.sectionHeader),
+            const Text("Mode / Activity", style: AppTheme.sectionHeader),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _showModePicker,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey[400]!), borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: Colors.grey[200]!, blurRadius: 4, offset: const Offset(0, 2))]),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(_selectedMode, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const Icon(Icons.arrow_drop_down_circle, color: AppTheme.primaryColor)]),
-              ),
+
+            // SPLIT ROW: MODE & ACTIVITY
+            Row(
+              children: [
+                // 1. MODE PICKER (Flex 4 = 80% width)
+                Expanded(
+                  flex: 4,
+                  child: GestureDetector(
+                    onTap: _showModePicker,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: Colors.grey[400]!),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [BoxShadow(color: Colors.grey[200]!, blurRadius: 4, offset: const Offset(0, 2))]
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_selectedMode, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const Icon(Icons.arrow_drop_down_circle, color: AppTheme.primaryColor)
+                        ]
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(width: 10),
+                
+                // 2. ACTIVITY BUTTON (Flex 1 = 20% width)
+                Expanded(
+                  flex: 1,
+                  child: GestureDetector(
+                    onTap: _showActivityDialog,
+                    child: Container(
+                      height: 50, 
+                      decoration: BoxDecoration(
+                        color: _activeActivations.isNotEmpty ? Colors.green[100] : Colors.white,
+                        border: Border.all(
+                          color: _activeActivations.isNotEmpty ? Colors.green : Colors.grey[400]!
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.terrain, 
+                        color: _activeActivations.isNotEmpty ? Colors.green[800] : Colors.grey[600]
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+
+            // Selected Activities List (Below Row)
+            if (_activeActivations.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  "Active: ${_activeActivations.map((e) => e.reference).join(', ')}",
+                  style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
 
             const Divider(height: 40),
 
+            // RST
             const Text("Signal Report", style: AppTheme.sectionHeader),
             const SizedBox(height: 10),
             Row(
@@ -656,6 +741,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             ),
             const SizedBox(height: 20), 
             
+            // TIME CARD
             Card(
               color: _isManualTime ? Colors.amber[50] : Colors.blue[50], 
               elevation: 0,
