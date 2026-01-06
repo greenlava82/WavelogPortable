@@ -1,96 +1,44 @@
-# K1GLV Logger
+# K1GLV Wavelog Mobile
 
-**A lightweight, mobile-first amateur radio logging application built with Flutter.**
+A specialized, offline-first amateur radio logging application built with Flutter. Designed to interface directly with a self-hosted [Wavelog](https://github.com/wavelog/wavelog) instance via API.
 
-This project is designed for ham radio operators who need a fast, streamlined way to log contacts (QSOs) in the field—whether you are doing POTA (Parks on the Air), SOTA (Summits on the Air), or just operating casually from the couch.
+## 🚀 Current Features
 
-## 🚀 The Problem
-The Wavelog/Cloudlog web based functionality is great, but the web based interface does not scale well.  Other phone based logging apps exist, but few will upload directly to Wavelog. This app serves to bridge that gap 
+### 📡 Logging & Wavelog Integration
+* **Direct API Upload:** Logs contacts immediately to Wavelog in ADIF format.
+* **Dupe Checking:** Checks `private_lookup` endpoint on Wavelog to show "WORKED" (Band/Mode specific) or "NEW" badges in real-time.
+* **Station Profiles:** Dynamically fetches and allows selection of Station Profile IDs from the server.
+* **Offline Queueing:** (Partial) UI state is saved locally between sessions.
 
-## ✨ Key Features
+###  Parks & Summits (POTA / SOTA)
+* **Offline Database:** Downloads official POTA (`all_parks.csv`) and SOTA (`summitslist.csv`) databases (~15MB) to local SQLite storage.
+* **Instant Search:** Search for parks or summits by Reference ID (e.g., `K-1234`) or Name (e.g., `Greylock`) without internet access.
+* **ADIF Compliance:** correctly maps selections to `POTA_REF` and `SOTA_REF` tags for Wavelog ingestion.
 
-* **Hybrid Callsign Lookup:**
-    * Automatically queries **Callook.info** for US callsigns (fast, free, detailed license class data).
-    * Seamlessly falls back to **QRZ XML** (or HamQTH) for international contacts.
-* **Smart Frequency Control:**
-    * A virtual "Radio Dial" for fine-tuning frequency.
-    * **Direct Entry Keypad:** Intelligently handles MHz vs. kHz input (e.g., typing "14200" or "14.2" both tune to 14.200 MHz).
-    * Band-aware limits to keep you inside the amateur bands.
-* **Persistent State:** The app remembers your last used Band, Mode, and Frequency. If you are running a pileup on 20m SSB, you don't have to re-select those settings for every contact.
-* **Live UTC Clock:**
-    * Displays real-time UTC (the standard for logging).
-    * **Manual Mode:** Tap the clock to freeze time and backdate logs (useful for transcribing paper notes).
-* **Clean UI:** Critical controls (RST, Mode) are tucked away in pop-ups to prevent accidental changes while operating.
+### 🗺️ Mapping & Location
+* **Grid Square Visualization:** Converts 4 or 6-character Maidenhead grid squares to Lat/Lon.
+* **Offline Maps:** Uses `flutter_map` with OpenStreetMap tiles to visualize contact locations.
+* **Callsign Lookup:** Hybrid lookup strategy using **Callook.info** (US/Free) and **QRZ XML** (International/Backup).
 
-## 🛠️ Setup & Installation
+### 🎛️ Radio Control UI
+* **Virtual VFO:** Custom "Radio Dial" widget for frequency selection with 1kHz stepping.
+* **Smart Mode:** Remembers the last used frequency/mode per band.
+* **RST Sliders:** Rapid entry for Signal Reports (59 / 599).
 
-### Prerequisites
-* [Flutter SDK](https://flutter.dev/docs/get-started/install) installed on your machine.
-* An Android device or Emulator (iOS is supported by Flutter but untested).
-* A **QRZ XML Subscription** (recommended) or HamQTH account for international data lookups.
+## 🛠️ Technical Stack
+* **Framework:** Flutter (Dart)
+* **Storage:** `shared_preferences` (Settings), `sqflite` (POTA/SOTA DB).
+* **Networking:** `http` (Wavelog API, QRZ, POTA Downloads).
+* **Mapping:** `flutter_map`, `latlong2`.
 
-### Installation
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/YOUR_USERNAME/ham-logger.git](https://github.com/YOUR_USERNAME/ham-logger.git)
-    cd ham-logger
-    ```
+## 📋 Todo / Roadmap
 
-2.  **Install dependencies:**
-    ```bash
-    flutter pub get
-    ```
+* [ ] **Live Spot Integration:** Query POTA/SOTA "Active Spots" APIs to auto-fill park references based on the entered callsign.
+* [ ] **Offline Logging Queue:** Store logs locally if the Wavelog server is unreachable and sync when online.
+* [ ] **WWFF Support:** Add support for World Wide Flora & Fauna databases.
+* [ ] **UI Refinement:** Tablet/Landscape layout optimizations.
 
-3.  **Run the app:**
-    ```bash
-    flutter run
-    ```
-
-## ⚙️ Configuration
-
-Before you start logging, you must configure the app. Tap the **Settings (Gear Icon)** on the main screen.
-
-1.  **My Station:** Enter your own callsign and Grid Square.
-2.  **Active Modes:** Select the modes you use (SSB, CW, FT8, etc.). Only selected modes will appear in the picker to keep the list clean.
-3.  **Wavelog Integration:** Enter your Wavelog/Cloudlog API URL, API Key, and choose a **Station ID** from the Dropdown.
-4.  **Lookup Credentials:**
-    * Enter your **QRZ** (or HamQTH) Username and Password.
-    * *Note: US lookups via Callook do not require a login.*
-
-## 📱 Workflow
-
-1.  **Input:** Open the app and type a callsign (e.g., `W1AW`).
-2.  **Lookup:** Hit **Enter**. The app fetches the operator's Name, Location, and Grid Square automatically.
-3.  **Details:** You are taken to the **Contact Details** screen.
-    * **Time:** Auto-filled with current UTC.
-    * **Band/Freq:** Auto-filled from your previous contact.
-    * **RST:** Defaults to 59/599. Tap to adjust.
-4.  **Log It:** Tap the **Save** icon.
-    * The contact is logged (printed to console/local storage).
-    * You are returned to the input screen.
-    * The callsign field is automatically cleared, ready for the next one.
-
-## 🚧 Project Status
-
-* [x] **UI/UX:** Fully functional Material 3 design.
-* [x] **Lookup Engine:** Hybrid Callook + QRZ XML implemented.
-* [x] **State Management:** Persistence for radio settings.
-* [ ] **POTA/SOTA/Comments:** fill out additional fields in your Wavelog QSO log is currently in development
-* [x] **Wavelog Upload:** API integration is currently in development.
-* [ ] **Local Database:** SQLite storage for offline history is planned.
-
-## 🚀 Roadmap / Todo
-
-### Next Session
-* [x] **Settings:** Implement "Fetch Station ID" button to populate a dropdown menu from Wavelog API.
-* [ ] **Details UI:** Add input fields for **POTA Ref**, **SOTA Ref**, and **Comments**.
-* [ ] **ADIF Export:** Update WavelogService to include the new POTA/SOTA/Comment tags in the upload.
-* [x] **QSO History:** Query Wavelog for previous contacts with the current callsign and display a "History" indicator/list.
-
-### Future
-* [ ] **Local Database:** SQLite storage for offline history.
-* [ ] **Branding:** Custom App Icon and Splash Screen.
-
-## 📄 License
-
-This project is open source. Feel free to fork and modify it for your own shack!
+## 🔑 Setup
+1.  **Settings:** Enter your Wavelog Base URL (e.g., `https://log.mysite.com/index.php/api`) and API Key.
+2.  **Credentials:** Enter QRZ/HamQTH credentials for international lookups.
+3.  **Databases:** Go to Settings and tap "Download POTA/SOTA Databases" to initialize the offline search.
