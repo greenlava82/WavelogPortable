@@ -643,10 +643,34 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               ],
             ),
 
-            const Text("Mode / Activity", style: AppTheme.sectionHeader),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+            // --- HEADER ROW (Title + Active Refs) ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end, // Aligns text to bottom of header
+              children: [
+                const Text("Mode / Activity", style: AppTheme.sectionHeader),
+                
+                // Active Parks/Summits Text (Right Aligned)
+                if (_activeActivations.isNotEmpty)
+                  Expanded(
+                    child: Text(
+                      _activeActivations.map((e) => e.reference).join(', '),
+                      textAlign: TextAlign.right,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.green[800], 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 13
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            
+            const SizedBox(height: 10),
 
-            // SPLIT ROW: MODE & ACTIVITY
+            // --- SPLIT ROW: MODE & ACTIVITY BUTTONS ---
             Row(
               children: [
                 // 1. MODE PICKER (Flex 4 = 80% width)
@@ -698,19 +722,10 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                 ),
               ],
             ),
-
-            // Selected Activities List (Below Row)
-            if (_activeActivations.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  "Active: ${_activeActivations.map((e) => e.reference).join(', ')}",
-                  style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
+            
+            // REMOVED: The old "Active: ..." text block that was down here.
 
             const Divider(height: 40),
-
             // RST
             const Text("Signal Report", style: AppTheme.sectionHeader),
             const SizedBox(height: 10),
