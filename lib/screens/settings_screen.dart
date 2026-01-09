@@ -188,7 +188,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          _buildHeader("Lookup Credentials (QRZ / HamQTH)"),
+          _buildHeader("Lookup Credentials (QRZ)"),
           _buildTextField("Username", _hamqthUserCtrl, icon: Icons.person),
           _buildTextField("Password", _hamqthPassCtrl, obscure: true, icon: Icons.lock),
           

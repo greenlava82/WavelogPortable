@@ -18,17 +18,17 @@ class RadioDial extends StatelessWidget {
     this.activeColor = Colors.redAccent,
   });
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Container(
           height: 30, 
           decoration: BoxDecoration(
-            color: Colors.grey[900], 
-            borderRadius: BorderRadius.circular(4),
+            color: Colors.grey[900], // Slightly softer than black
+            borderRadius: BorderRadius.circular(12), // <--- NEW: Matches your Cards
             border: Border.all(color: Colors.grey[700]!),
-            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 2, offset: Offset(0, 1))],
+            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))],
           ),
           child: Stack(
             alignment: Alignment.center,
