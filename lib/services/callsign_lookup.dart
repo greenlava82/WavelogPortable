@@ -1,4 +1,5 @@
-import 'dart:convert';
+// FILE: lib/services/callsign_lookup.dart
+// ==============================
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
 
@@ -10,6 +11,8 @@ class HamProfile {
   final String state;
   final String country;
   final String grid;
+  final double? lat;
+  final double? lon;
 
   HamProfile({
     required this.callsign,
@@ -19,6 +22,8 @@ class HamProfile {
     required this.state,
     required this.country,
     required this.grid,
+    this.lat,
+    this.lon,
   });
 
   factory HamProfile.empty() {
@@ -33,30 +38,7 @@ class HamProfile {
     );
   }
 
-  factory HamProfile.fromCallook(Map<String, dynamic> json) {
-    final current = json['current'] ?? {};
-    final address = json['address'] ?? {};
-    final location = json['location'] ?? {};
-
-    String displayClass = 'Unknown';
-    String type = (json['type'] ?? '').toString().toUpperCase();
-    if (['CLUB', 'MILITARY', 'RACES', 'TRUSTEE'].contains(type)) {
-      displayClass = type;
-    } else if (current['operClass'] != null) {
-      displayClass = current['operClass'];
-    }
-
-    return HamProfile(
-      callsign: current['callsign'] ?? 'Unknown',
-      name: json['name'] ?? 'Unknown',
-      licenseClass: displayClass,
-      city: (address['line2'] != null) ? address['line2'].toString().split(',')[0] : 'Unknown',
-      state: (address['line2'] != null) ? address['line2'].toString().split(',')[1].trim().split(' ')[0] : 'Unknown',
-      country: "USA",
-      grid: location['gridsquare'] ?? 'Unknown',
-    );
-  }
-
+  // --- PARSE QRZ XML ---
   factory HamProfile.fromQrzXml(String xml) {
     String getTag(String tag) {
       final RegExp regExp = RegExp('<$tag>(.*?)</$tag>');
@@ -77,6 +59,10 @@ class HamProfile {
       state: getTag('state'), 
       country: getTag('country'),
       grid: getTag('grid'),
+      
+      // PARSE COORDINATES
+      lat: double.tryParse(getTag('lat')),
+      lon: double.tryParse(getTag('lon')),
     );
   }
 }
@@ -85,34 +71,8 @@ class CallsignLookup {
   static String? _qrzSessionKey;
 
   static Future<HamProfile> fetch(String callsign) async {
-    // 1. Try Callook for US calls (Faster, Free)
-    if (_isLikelyUS(callsign)) {
-      try {
-        HamProfile profile = await _fetchCallook(callsign);
-        if (profile.name != "Not Found") return profile;
-      } catch (e) {
-        // Fallback to QRZ
-      }
-    }
-
-    // 2. Fallback to QRZ (Global)
+    // Simplified: Always use QRZ (Removed Callook fallback)
     return await _fetchQrz(callsign);
-  }
-
-  static bool _isLikelyUS(String call) {
-    return RegExp(r'^[AKNW][a-zA-Z]?[0-9][a-zA-Z]*$').hasMatch(call.toUpperCase());
-  }
-
-  static Future<HamProfile> _fetchCallook(String callsign) async {
-    final url = Uri.parse('https://callook.info/$callsign/json');
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['status'] == 'VALID') {
-        return HamProfile.fromCallook(data);
-      }
-    }
-    return HamProfile.empty();
   }
 
   static Future<HamProfile> _fetchQrz(String callsign) async {
