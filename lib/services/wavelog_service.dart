@@ -5,9 +5,47 @@ import 'package:http/http.dart' as http;
 import 'settings_service.dart';
 import '../models/rst_report.dart';
 import '../models/lookup_result.dart';
+import '../services/database_service.dart';
 
 class WavelogService {
   
+  static Future<void> flushOfflineQueue() async {
+    final db = DatabaseService();
+    List<Map<String, dynamic>> queue = await db.getOfflineQsos();
+    
+    if (queue.isEmpty) return;
+    
+    print("FLUSH: Found ${queue.length} pending QSOs. Retrying...");
+    
+    String baseUrl = await AppSettings.getString(AppSettings.keyWavelogUrl);
+    if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
+    final Uri apiUri = Uri.parse("$baseUrl/qso");
+
+    for (var row in queue) {
+      try {
+        
+        final response = await http.post(
+          apiUri,
+          headers: {"Content-Type": "application/json"},
+          body: row['payload'], // We can resend the exact string we saved
+        );
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          print("FLUSH: QSO ID ${row['id']} Uploaded Successfully!");
+          // Delete from local DB immediately upon success
+          await db.deleteOfflineQso(row['id']);
+        } else {
+          print("FLUSH: Failed ID ${row['id']} with ${response.statusCode}. Stopping flush.");
+          // If one fails, stop trying to preserve order and battery
+          break; 
+        }
+      } catch (e) {
+        print("FLUSH: Network error ($e). Stopping.");
+        break;
+      }
+    }
+  }
+
   static Future<List<Map<String, String>>> fetchStations(String baseUrl, String apiKey) async {
     if (baseUrl.isEmpty || apiKey.isEmpty) return [];
     
@@ -128,22 +166,31 @@ class WavelogService {
       "string": adif.toString() 
     };
 
-    try {
+try {
       final response = await http.post(
         apiUri,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
 
-      print("Wavelog Response Code: ${response.statusCode}");
-
       if (response.statusCode == 200 || response.statusCode == 201) {
+        // SUCCESS!
+        // Since we are online, this is a great time to send any old logs
+        flushOfflineQueue(); 
         return true;
+      } else {
+        // API Error (Auth failure, etc) - Do NOT queue if key is wrong, only 5xx errors?
+        // For simplicity, we assume 500s or Timeouts are temporary.
+        print("UPLOAD FAILED: ${response.statusCode}");
+        await DatabaseService().saveOfflineQso(payload);
+        return false; 
       }
     } catch (e) {
-      print("Wavelog Network Error: $e");
+      // NETWORK ERROR (No internet, timeout)
+      print("NETWORK ERROR: $e - Queuing offline");
+      await DatabaseService().saveOfflineQso(payload);
+      return false; // Return false so UI knows it wasn't *live* uploaded
     }
-    return false;
   }
 
   static Future<LookupResult> checkDupe(String callsign, String band, String mode) async {

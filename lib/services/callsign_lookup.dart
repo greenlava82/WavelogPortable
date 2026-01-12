@@ -2,6 +2,7 @@
 // ==============================
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
+import 'wavelog_service.dart';
 
 class HamProfile {
   final String callsign;
@@ -104,6 +105,7 @@ class CallsignLookup {
         }
 
         if (xml.contains('<call>')) {
+           WavelogService.flushOfflineQueue();
            return HamProfile.fromQrzXml(xml);
         }
       }

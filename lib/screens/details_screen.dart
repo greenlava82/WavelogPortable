@@ -26,7 +26,7 @@ class QsoDetailsScreen extends StatefulWidget {
 class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   // Band & Freq
   final List<String> _bandList = bandPlan.keys.toList();
-  double _bandSliderValue = 5.0; 
+  double _bandSliderValue = 5.0; // Default to 20m
   String _selectedBand = '20m';
   double _currentFreq = 14.074;
   
@@ -34,7 +34,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   List<String> _activeModes = [];
   String _selectedMode = 'SSB';
 
-  // Activity
+   // Activity
   List<ActivityRef> _activeActivations = [];
 
   // Time
@@ -49,7 +49,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   String _opState = "";
   String _opCountry = "";
   String _opGrid = "Loading...";
-  // NEW: Coordinates
   double? _opLat;
   double? _opLon;
 
@@ -82,6 +81,34 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     super.dispose();
   }
 
+  // --- 1. LOAD SETTINGS & RADIO STATE ---
+  Future<void> _loadPreferences() async {
+    List<String> savedModes = await AppSettings.getModes();
+    Map<String, dynamic> lastState = await AppSettings.getLastRadioState();
+    
+    if (mounted) {
+      setState(() {
+        _activeModes = savedModes;
+        
+        if (lastState['band'] != null && _bandList.contains(lastState['band'])) {
+          _selectedBand = lastState['band'];
+          _bandSliderValue = _bandList.indexOf(_selectedBand).toDouble();
+        }
+        if (lastState['freq'] != null) {
+          _currentFreq = lastState['freq'];
+        }
+
+        if (lastState['mode'] != null && _activeModes.contains(lastState['mode'])) {
+          _selectedMode = lastState['mode'];
+        } else if (!_activeModes.contains(_selectedMode) && _activeModes.isNotEmpty) {
+          _selectedMode = _activeModes.first;
+        }
+      });
+      _checkHistory();
+    }
+  }
+
+  // --- 2. LOGIC: DUPE CHECK ---
   Future<void> _checkHistory() async {
     if (!mounted) return;
     setState(() => _isLoadingHistory = true);
@@ -100,33 +127,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     }
   }
 
-  Future<void> _loadPreferences() async {
-    List<String> savedModes = await AppSettings.getModes();
-    Map<String, dynamic> lastState = await AppSettings.getLastRadioState();
-    
-    if (mounted) {
-      setState(() {
-        _activeModes = savedModes;
-        
-        if (lastState['band'] != null && _bandList.contains(lastState['band'])) {
-          _selectedBand = lastState['band'];
-          _bandSliderValue = _bandList.indexOf(_selectedBand).toDouble();
-        }
-
-        if (lastState['freq'] != null) {
-          _currentFreq = lastState['freq'];
-        }
-
-        if (lastState['mode'] != null && _activeModes.contains(lastState['mode'])) {
-          _selectedMode = lastState['mode'];
-        } else if (!_activeModes.contains(_selectedMode) && _activeModes.isNotEmpty) {
-          _selectedMode = _activeModes.first;
-        }
-      });
-      _checkHistory();
-    }
-  }
-
+  // --- 3. LOGIC: CALLSIGN LOOKUP ---
   Future<void> _performLookup() async {
     setState(() {
       _opName = "Looking up...";
@@ -151,6 +152,64 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       });
     }
   }
+
+  // --- 4. LOGIC: LOG SUBMISSION (UPDATED FOR OFFLINE) ---
+  Future<void> _submitLog() async {
+    double cleanFreq = double.parse(_currentFreq.toStringAsFixed(3));
+    DateTime utcTime = _logTime.toUtc();
+
+    // 1. Save Radio State for next time
+    await AppSettings.saveRadioState(_selectedBand, _currentFreq, _selectedMode);
+
+    if (!mounted) return; 
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Saving Contact...'), duration: Duration(milliseconds: 500)),
+    );
+
+    // 2. Prepare References
+    List<String> potaRefs = _activeActivations.where((a) => a.type == 'POTA').map((a) => a.reference).toList();
+    List<String> sotaRefs = _activeActivations.where((a) => a.type == 'SOTA').map((a) => a.reference).toList();
+
+    // 3. Post (or Queue)
+    // Note: This method now returns FALSE if queued offline, but TRUE if uploaded live.
+    bool liveUploadSuccess = await WavelogService.postQso(
+      callsign: widget.callsign,
+      band: _selectedBand,
+      mode: _selectedMode,
+      freq: cleanFreq,
+      timeOn: utcTime,
+      rstSent: _sentRst,
+      rstRcvd: _rcvdRst,
+      grid: _opGrid,
+      name: _opName,
+      potaList: potaRefs.join(','), 
+      sotaRef: sotaRefs.isNotEmpty ? sotaRefs.first : null,
+    );
+
+    if (!mounted) return;
+
+    if (liveUploadSuccess) {
+      // ONLINE SUCCESS
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Log Uploaded Successfully!'), backgroundColor: Colors.green),
+      );
+    } else {
+      // OFFLINE / QUEUED
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No Signal? Saved to Offline Queue.'), 
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    // In both cases, we return 'true' to clear the input screen and move on
+    Navigator.pop(context, true); 
+  }
+
+  // --- UI HELPERS ---
 
   void _updateBandFromDial(double sliderValue) {
     int index = sliderValue.round();
@@ -405,12 +464,6 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     }
   }
 
-  String _formatDateTime(DateTime dt, {bool isUtc = false}) {
-    String twoDigits(int n) => n.toString().padLeft(2, "0");
-    DateTime t = isUtc ? dt.toUtc() : dt;
-    return "${t.year}-${twoDigits(t.month)}-${twoDigits(t.day)} ${twoDigits(t.hour)}:${twoDigits(t.minute)}:${twoDigits(t.second)}";
-  }
-
   Widget _buildHistoryBadge() {
     if (_isLoadingHistory) {
       return const SizedBox(
@@ -454,49 +507,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     }
   }
 
-  Future<void> _submitLog() async {
-    double cleanFreq = double.parse(_currentFreq.toStringAsFixed(3));
-    DateTime utcTime = _logTime.toUtc();
-
-    await AppSettings.saveRadioState(_selectedBand, _currentFreq, _selectedMode);
-
-    if (!mounted) return; 
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Logging to Wavelog...'), duration: Duration(milliseconds: 500)),
-    );
-
-    List<String> potaRefs = _activeActivations.where((a) => a.type == 'POTA').map((a) => a.reference).toList();
-    List<String> sotaRefs = _activeActivations.where((a) => a.type == 'SOTA').map((a) => a.reference).toList();
-
-    bool success = await WavelogService.postQso(
-      callsign: widget.callsign,
-      band: _selectedBand,
-      mode: _selectedMode,
-      freq: cleanFreq,
-      timeOn: utcTime,
-      rstSent: _sentRst,
-      rstRcvd: _rcvdRst,
-      grid: _opGrid,
-      name: _opName,
-      potaList: potaRefs.join(','), 
-      sotaRef: sotaRefs.isNotEmpty ? sotaRefs.first : null,
-    );
-
-    if (!mounted) return;
-
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Log Saved Successfully!'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context, true); 
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Wavelog Upload Failed (Check Settings)'), backgroundColor: Colors.orange),
-      );
-    }
-  }
-
+  // --- MAIN BUILD ---
   @override
   Widget build(BuildContext context) {
     // Check if we have enough info to show the map button
@@ -510,7 +521,11 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         backgroundColor: AppTheme.primaryColor, 
         foregroundColor: Colors.white,
         actions: [
-          IconButton(onPressed: _submitLog, icon: const Icon(Icons.save, size: 30), tooltip: "Save Contact"),
+          IconButton(
+            onPressed: _submitLog,
+            icon: const Icon(Icons.save, size: 30),
+            tooltip: "Save Contact",
+          ),
           const SizedBox(width: 10),
         ],
       ),
@@ -782,13 +797,13 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               ],
             ),
             const SizedBox(height: 20), 
-            
+
             Card(
               color: _isManualTime ? Colors.amber[50] : Colors.green[50], 
               elevation: 0,
               shape: RoundedRectangleBorder(
                   side: BorderSide(
-                      color: _isManualTime ? Colors.amber[200]! : Colors.green[200]!
+                   color: _isManualTime ? Colors.amber[200]! : Colors.green[200]!
                   ), 
                   borderRadius: BorderRadius.circular(12)
               ),
@@ -836,5 +851,11 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dt, {bool isUtc = false}) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    DateTime t = isUtc ? dt.toUtc() : dt;
+    return "${t.year}-${twoDigits(t.month)}-${twoDigits(t.day)} ${twoDigits(t.hour)}:${twoDigits(t.minute)}:${twoDigits(t.second)}";
   }
 }

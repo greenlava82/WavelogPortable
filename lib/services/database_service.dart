@@ -4,6 +4,7 @@ import 'package:csv/csv.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'dart:convert';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -22,26 +23,64 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'ham_logger_refs.db');
     return await openDatabase(
       path,
-      version: 1,
+      // INCREASE VERSION to trigger upgrade
+      version: 2, 
       onCreate: (db, version) async {
-        // Create POTA Table
-        await db.execute('''
-          CREATE TABLE pota (
-            reference TEXT PRIMARY KEY,
-            name TEXT,
-            location TEXT
-          )
-        ''');
-        // Create SOTA Table
-        await db.execute('''
-          CREATE TABLE sota (
-            reference TEXT PRIMARY KEY,
-            name TEXT,
-            region TEXT
-          )
-        ''');
+        await _createTables(db);
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add the new table if upgrading from version 1
+          await db.execute('''
+            CREATE TABLE offline_qsos (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              payload TEXT,
+              timestamp INTEGER
+            )
+          ''');
+        }
       },
     );
+  }
+
+  // Helper to create all tables (used in onCreate)
+  Future<void> _createTables(Database db) async {
+    await db.execute('CREATE TABLE pota (reference TEXT PRIMARY KEY, name TEXT, location TEXT)');
+    await db.execute('CREATE TABLE sota (reference TEXT PRIMARY KEY, name TEXT, region TEXT)');
+    // NEW TABLE
+    await db.execute('''
+      CREATE TABLE offline_qsos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payload TEXT,
+        timestamp INTEGER
+      )
+    ''');
+  }
+
+  // --- OFFLINE QUEUE METHODS ---
+
+  Future<void> saveOfflineQso(Map<String, dynamic> payload) async {
+    final db = await database;
+    await db.insert('offline_qsos', {
+      'payload': jsonEncode(payload), // Store the whole JSON blob
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+    print("OFFLINE: QSO Saved to Queue");
+  }
+
+  Future<List<Map<String, dynamic>>> getOfflineQsos() async {
+    final db = await database;
+    return await db.query('offline_qsos', orderBy: 'timestamp ASC');
+  }
+
+  Future<void> deleteOfflineQso(int id) async {
+    final db = await database;
+    await db.delete('offline_qsos', where: 'id = ?', whereArgs: [id]);
+  }
+  
+  Future<int> getOfflineQueueSize() async {
+    final db = await database;
+    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM offline_qsos')) ?? 0;
   }
 
   // --- SEARCH FUNCTIONS ---
