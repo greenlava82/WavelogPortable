@@ -24,7 +24,7 @@ class DatabaseService {
     return await openDatabase(
       path,
       // INCREASE VERSION to trigger upgrade
-      version: 2, 
+      version: 3, 
       onCreate: (db, version) async {
         await _createTables(db);
       },
@@ -36,6 +36,39 @@ class DatabaseService {
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               payload TEXT,
               timestamp INTEGER
+            )
+          ''');
+        }
+        if (oldVersion < 3) {
+           await db.execute('''
+            CREATE TABLE sessions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              name TEXT,
+              start_time INTEGER,
+              end_time INTEGER,
+              is_active INTEGER
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE session_qsos (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              session_id INTEGER,
+              callsign TEXT,
+              band TEXT,
+              mode TEXT,
+              freq REAL,
+              timestamp INTEGER,
+              rst_sent TEXT,
+              rst_rcvd TEXT,
+              pota_ref TEXT,
+              sota_ref TEXT,
+              grid TEXT,
+              name TEXT,
+              qth TEXT,
+              state TEXT,
+              country TEXT,
+              is_uploaded INTEGER,
+              FOREIGN KEY(session_id) REFERENCES sessions(id)
             )
           ''');
         }
@@ -55,6 +88,111 @@ class DatabaseService {
         timestamp INTEGER
       )
     ''');
+    await db.execute('''
+      CREATE TABLE sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        start_time INTEGER,
+        end_time INTEGER,
+        is_active INTEGER
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE session_qsos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER,
+        callsign TEXT,
+        band TEXT,
+        mode TEXT,
+        freq REAL,
+        timestamp INTEGER,
+        rst_sent TEXT,
+        rst_rcvd TEXT,
+        pota_ref TEXT,
+        sota_ref TEXT,
+        grid TEXT,
+        name TEXT,
+        qth TEXT,
+        state TEXT,
+        country TEXT,
+        is_uploaded INTEGER,
+        FOREIGN KEY(session_id) REFERENCES sessions(id)
+      )
+    ''');
+  }
+
+  // --- SESSION METHODS ---
+
+  Future<int> createSession(Map<String, dynamic> session) async {
+    final db = await database;
+    // Deactivate others? Maybe not enforced by DB, but by logic.
+    return await db.insert('sessions', session);
+  }
+
+  Future<int> closeSession(int id, int endTime) async {
+    final db = await database;
+    return await db.update(
+      'sessions', 
+      {'is_active': 0, 'end_time': endTime},
+      where: 'id = ?', 
+      whereArgs: [id]
+    );
+  }
+
+  Future<Map<String, dynamic>?> getActiveSession() async {
+    final db = await database;
+    final List<Map<String, dynamic>> res = await db.query(
+      'sessions',
+      where: 'is_active = 1',
+      orderBy: 'start_time DESC',
+      limit: 1,
+    );
+    if (res.isNotEmpty) return res.first;
+    return null;
+  }
+
+  Future<int> insertSessionQso(Map<String, dynamic> qso) async {
+    final db = await database;
+    return await db.insert('session_qsos', qso);
+  }
+  
+  Future<List<Map<String, dynamic>>> getSessionQsos(int sessionId) async {
+    final db = await database;
+    return await db.query(
+      'session_qsos',
+      where: 'session_id = ?',
+      whereArgs: [sessionId],
+      orderBy: 'timestamp DESC'
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getUnuploadedSessionQsos() async {
+    final db = await database;
+    return await db.query(
+      'session_qsos',
+      where: 'is_uploaded = 0',
+      orderBy: 'timestamp ASC'
+    );
+  }
+
+  Future<int> markSessionQsoUploaded(int id) async {
+    final db = await database;
+    return await db.update(
+      'session_qsos',
+      {'is_uploaded': 1},
+      where: 'id = ?',
+      whereArgs: [id]
+    );
+  }
+  
+  Future<bool> checkSessionDupe(int sessionId, String callsign, String band, String mode) async {
+    final db = await database;
+    final res = await db.query(
+      'session_qsos',
+      where: 'session_id = ? AND callsign = ? AND band = ? AND mode = ?',
+      whereArgs: [sessionId, callsign, band, mode]
+    );
+    return res.isNotEmpty;
   }
 
   // --- OFFLINE QUEUE METHODS ---

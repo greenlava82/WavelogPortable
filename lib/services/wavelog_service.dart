@@ -100,6 +100,7 @@ class WavelogService {
     String? country,
     String? potaList,
     String? sotaRef,
+    int? overrideStationId, // Optional override
   }) async {
     
     String baseUrl = await AppSettings.getString(AppSettings.keyWavelogUrl);
@@ -117,7 +118,10 @@ class WavelogService {
     final Uri apiUri = Uri.parse("$baseUrl/index.php/api/qso");
     
     int stationProfileId = -1;
-    if (stationIdStr.isNotEmpty) {
+    // Use override if provided, else use settings
+    if (overrideStationId != null) {
+      stationProfileId = overrideStationId;
+    } else if (stationIdStr.isNotEmpty) {
       int? parsedId = int.tryParse(stationIdStr);
       if (parsedId != null) stationProfileId = parsedId;
     }
@@ -175,30 +179,33 @@ class WavelogService {
       "string": adif.toString() 
     };
 
-try {
+    print("--- POST QSO DEBUG ---");
+    print("URL: $apiUri");
+    print("Station ID: $stationProfileId");
+    print("Payload: ${jsonEncode(payload)}");
+    print("----------------------");
+
+    try {
       final response = await http.post(
         apiUri,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(payload),
       );
 
+      print("Response Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // SUCCESS!
-        // Since we are online, this is a great time to send any old logs
-        flushOfflineQueue(); 
         return true;
       } else {
-        // API Error (Auth failure, etc) - Do NOT queue if key is wrong, only 5xx errors?
-        // For simplicity, we assume 500s or Timeouts are temporary.
-        print("UPLOAD FAILED: ${response.statusCode}");
-        await DatabaseService().saveOfflineQso(payload);
+        // API Error (Auth failure, etc)
+        print("UPLOAD FAILED: ${response.statusCode} - ${response.body}");
         return false; 
       }
     } catch (e) {
       // NETWORK ERROR (No internet, timeout)
-      print("NETWORK ERROR: $e - Queuing offline");
-      await DatabaseService().saveOfflineQso(payload);
-      return false; // Return false so UI knows it wasn't *live* uploaded
+      print("NETWORK ERROR: $e");
+      return false;
     }
   }
 

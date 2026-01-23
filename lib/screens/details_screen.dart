@@ -7,11 +7,14 @@ import '../config/theme.dart';
 import '../models/rst_report.dart';
 import '../models/lookup_result.dart';
 import '../models/activity_ref.dart';
+import '../models/session_qso.dart';
 import '../widgets/radio_dial.dart';
 import '../widgets/location_map_dialog.dart';
 import '../widgets/activity_selection_dialog.dart';
 import '../services/callsign_lookup.dart';
-import '../services/wavelog_service.dart';
+import '../services/wavelog_service.dart'; // Keep for now if needed, but primarily replacing
+import '../services/session_service.dart';
+import '../services/database_service.dart';
 import '../services/settings_service.dart';
 import '../utils/maidenhead.dart';
 
@@ -113,7 +116,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     if (!mounted) return;
     setState(() => _isLoadingHistory = true);
 
-    var result = await WavelogService.checkDupe(
+    var result = await SessionService().checkDupe(
       widget.callsign, 
       _selectedBand, 
       _selectedMode
@@ -172,8 +175,8 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     List<String> sotaRefs = _activeActivations.where((a) => a.type == 'SOTA').map((a) => a.reference).toList();
 
     // 3. Post (or Queue)
-    // Note: This method now returns FALSE if queued offline, but TRUE if uploaded live.
-    bool liveUploadSuccess = await WavelogService.postQso(
+    // SessionService handles offline queueing internally
+    bool saved = await SessionService().logQso(
       callsign: widget.callsign,
       band: _selectedBand,
       mode: _selectedMode,
@@ -192,19 +195,21 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
 
     if (!mounted) return;
 
-    if (liveUploadSuccess) {
-      // ONLINE SUCCESS
+    if (saved) {
+      bool isOffline = SessionService().isOfflineMode;
+      // If we are offline, it was queued. If online, it was tried.
+      // Actually logQso returns true if saved locally.
+      // We can check if it was uploaded by checking the session or just generic message.
+      
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Log Uploaded Successfully!'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text(isOffline ? 'Saved to Offline Queue' : 'Contact Logged!'), 
+          backgroundColor: isOffline ? Colors.orange : Colors.green
+        ),
       );
     } else {
-      // OFFLINE / QUEUED
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No Signal? Saved to Offline Queue.'), 
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
-        ),
+        const SnackBar(content: Text('Error saving contact'), backgroundColor: Colors.red),
       );
     }
 
@@ -529,14 +534,14 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       return Container(
         padding: badgePadding,
         decoration: BoxDecoration(
-          color: Colors.blue[100],
+          color: Colors.red[100],
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.blue)
+          border: Border.all(color: Colors.red)
         ),
         child: Text(
-          "WORKED", 
+          "REPEAT", 
           style: TextStyle(
-            color: Colors.blue[900], 
+            color: Colors.red[900], 
             fontSize: fontSize, 
             fontWeight: FontWeight.bold
           )
@@ -555,6 +560,46 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _showSessionLog() async {
+    final session = SessionService().currentSession;
+    if (session == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No Active Session")));
+      return;
+    }
+    
+    // Fetch QSOs
+    final db = DatabaseService();
+    final qsos = await db.getSessionQsos(session.id!);
+    
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Session: ${session.name}"),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: qsos.isEmpty 
+            ? const Center(child: Text("No QSOs in this session yet."))
+            : ListView.builder(
+                itemCount: qsos.length,
+                itemBuilder: (context, index) {
+                  final q = SessionQso.fromMap(qsos[index]);
+                  return ListTile(
+                    leading: Text(q.band, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    title: Text("${q.callsign} (${q.mode})"),
+                    subtitle: Text("${_formatDateTime(q.timestamp, isUtc: true)} UTC"),
+                    trailing: Text("${q.freq} MHz"),
+                  );
+                },
+              ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
+      )
+    );
   }
 
   // --- MAIN BUILD ---
@@ -618,7 +663,10 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
 
                         const Spacer(), 
 
-                        _buildHistoryBadge(),
+                        InkWell(
+                          onTap: _showSessionLog,
+                          child: _buildHistoryBadge(),
+                        ),
                         
                         const SizedBox(width: 8), 
 
@@ -694,12 +742,19 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
             const SizedBox(height: 10),
 
             // BAND DIAL
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Band", style: AppTheme.sectionHeader),
-                Text(_selectedBand, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-              ],
+            InkWell(
+              onTap: _showSessionLog,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(children: [
+                     const Text("Band", style: AppTheme.sectionHeader),
+                     if (SessionService().currentSession != null)
+                       const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.history, size: 18, color: Colors.blue))
+                  ]),
+                  Text(_selectedBand, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                ],
+              ),
             ),
             const SizedBox(height: 5),
             RadioDial(
