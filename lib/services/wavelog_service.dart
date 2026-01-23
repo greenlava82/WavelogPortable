@@ -95,6 +95,9 @@ class WavelogService {
     required RstReport rstRcvd,
     String? grid, 
     String? name,
+    String? qth,
+    String? state,
+    String? country,
     String? potaList,
     String? sotaRef,
   }) async {
@@ -142,6 +145,9 @@ class WavelogService {
     
     if (grid != null && grid != "---") add("GRIDSQUARE", grid);
     if (name != null && name != "Not Found") add("NAME", name);
+    if (qth != null && qth.isNotEmpty) add("QTH", qth);
+    if (state != null && state.isNotEmpty) add("STATE", state);
+    if (country != null && country.isNotEmpty) add("COUNTRY", country);
     
     // --- UPDATED: Use Application-Specific tags for Wavelog ---
     
