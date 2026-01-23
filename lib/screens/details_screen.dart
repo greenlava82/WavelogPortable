@@ -333,7 +333,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                     },
                     child: label == 'DEL' 
                       ? const Icon(Icons.backspace_outlined) 
-                      : Text(label, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                      : (label == 'ENT' ? const Icon(Icons.arrow_forward, size: 28) : Text(label, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
                   ),
                 ),
               );
