@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'details_screen.dart';
 import 'settings_screen.dart';
 import '../config/theme.dart';
+import '../services/settings_service.dart';
 
 
 class CallsignInputScreen extends StatefulWidget {
@@ -19,6 +20,29 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
     ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
     ['DEL', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '/', 'ENT']
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkSettings());
+  }
+
+  Future<void> _checkSettings() async {
+    String call = await AppSettings.getString(AppSettings.keyMyCallsign);
+    String grid = await AppSettings.getString(AppSettings.keyMyGrid);
+
+    if (call.isEmpty || grid.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please configure your Station first"), duration: Duration(seconds: 3)),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+        );
+      }
+    }
+  }
 
   void _handleKeyTap(String value) {
     setState(() {
