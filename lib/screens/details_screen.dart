@@ -183,6 +183,9 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       rstRcvd: _rcvdRst,
       grid: _opGrid,
       name: _opName,
+      qth: _opCity,
+      state: _opState,
+      country: _opCountry,
       potaList: potaRefs.join(','), 
       sotaRef: sotaRefs.isNotEmpty ? sotaRefs.first : null,
     );
@@ -422,6 +425,53 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     );
   }
 
+  void _showProfileEditor() {
+    final nameCtrl = TextEditingController(text: (_opName == "Loading..." || _opName == "Looking up...") ? "" : _opName);
+    final gridCtrl = TextEditingController(text: (_opGrid == "Loading..." || _opGrid == "...") ? "" : _opGrid);
+    final cityCtrl = TextEditingController(text: (_opCity == "Loading..." || _opCity == "...") ? "" : _opCity);
+    final stateCtrl = TextEditingController(text: (_opState == "..." || _opState == "---") ? "" : _opState);
+    final countryCtrl = TextEditingController(text: (_opCountry == "..." || _opCountry == "---") ? "" : _opCountry);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Edit Contact Details"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Name", border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: gridCtrl, decoration: const InputDecoration(labelText: "Grid Square", border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: cityCtrl, decoration: const InputDecoration(labelText: "City (QTH)", border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: stateCtrl, decoration: const InputDecoration(labelText: "State", border: OutlineInputBorder())),
+              const SizedBox(height: 8),
+              TextField(controller: countryCtrl, decoration: const InputDecoration(labelText: "Country", border: OutlineInputBorder())),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _opName = nameCtrl.text;
+                _opGrid = gridCtrl.text;
+                _opCity = cityCtrl.text;
+                _opState = stateCtrl.text;
+                _opCountry = countryCtrl.text;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
   // --- UPDATED MAP LOGIC ---
   void _showMap() {
     LatLng? target;
@@ -539,9 +589,12 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               color: Colors.white,
               elevation: 2,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+              child: InkWell(
+                onTap: _showProfileEditor,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -634,6 +687,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                     ),
                   ],
                 ),
+              ),
               ),
             ),
             
