@@ -93,6 +93,7 @@ class SessionService extends ChangeNotifier {
     String? country,
     String? potaList,
     String? sotaRef,
+    String? comment,
   }) async {
     
     // 1. Create SessionQso object
@@ -117,6 +118,7 @@ class SessionService extends ChangeNotifier {
       qth: qth,
       state: state,
       country: country,
+      comment: comment,
       isUploaded: false, // Default to false
     );
 
@@ -141,6 +143,7 @@ class SessionService extends ChangeNotifier {
         country: country,
         potaList: potaList,
         sotaRef: sotaRef,
+        comment: comment,
       );
 
       if (status == 200 || status == 201) {
@@ -231,6 +234,7 @@ class SessionService extends ChangeNotifier {
         country: qso.country,
         potaList: qso.potaRef,
         sotaRef: qso.sotaRef,
+        comment: qso.comment,
         overrideStationId: stationProfileId
       );
 
