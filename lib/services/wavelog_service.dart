@@ -85,7 +85,7 @@ class WavelogService {
     return [];
   }
 
-  static Future<bool> postQso({
+  static Future<int> postQso({
     required String callsign,
     required String band,
     required String mode,
@@ -109,7 +109,7 @@ class WavelogService {
     String myGrid = await AppSettings.getString(AppSettings.keyMyGrid); 
     String stationCall = await AppSettings.getString(AppSettings.keyMyCallsign);
 
-    if (baseUrl.isEmpty || apiKey.isEmpty) return false; 
+    if (baseUrl.isEmpty || apiKey.isEmpty) return 0; 
 
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
     if (baseUrl.endsWith('/index.php/api')) baseUrl = baseUrl.substring(0, baseUrl.length - 14);
@@ -195,17 +195,11 @@ class WavelogService {
       print("Response Code: ${response.statusCode}");
       print("Response Body: ${response.body}");
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
-      } else {
-        // API Error (Auth failure, etc)
-        print("UPLOAD FAILED: ${response.statusCode} - ${response.body}");
-        return false; 
-      }
+      return response.statusCode;
     } catch (e) {
       // NETWORK ERROR (No internet, timeout)
       print("NETWORK ERROR: $e");
-      return false;
+      return 0;
     }
   }
 

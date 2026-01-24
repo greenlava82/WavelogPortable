@@ -126,7 +126,7 @@ class SessionService extends ChangeNotifier {
 
     // 2. Upload Logic
     if (!_isOfflineMode) {
-      bool success = await WavelogService.postQso(
+      int status = await WavelogService.postQso(
         callsign: callsign,
         band: band,
         mode: mode,
@@ -143,7 +143,7 @@ class SessionService extends ChangeNotifier {
         sotaRef: sotaRef,
       );
 
-      if (success) {
+      if (status == 200 || status == 201) {
         await db.markSessionQsoUploaded(qsoId);
         print("UPLOADED QSO: ID $qsoId");
       }
@@ -169,7 +169,8 @@ class SessionService extends ChangeNotifier {
         result = LookupResult(
           isWorked: true, 
           isWorkedBand: true, 
-          isWorkedMode: true
+          isWorkedMode: true,
+          isSessionDuplicate: true,
         );
         // If found locally in session, we can return early or merge with online data?
         // Usually local session dupe is critical for POTA.
@@ -215,7 +216,7 @@ class SessionService extends ChangeNotifier {
       RstReport rstS = _parseRst(qso.rstSent);
       RstReport rstR = _parseRst(qso.rstRcvd);
 
-      bool success = await WavelogService.postQso(
+      int status = await WavelogService.postQso(
         callsign: qso.callsign,
         band: qso.band,
         mode: qso.mode,
@@ -233,8 +234,17 @@ class SessionService extends ChangeNotifier {
         overrideStationId: stationProfileId
       );
 
-      if (success) {
+      // 3. Handle Result
+      if (status == 200 || status == 201) {
         await DatabaseService().markSessionQsoUploaded(qso.id!);
+      } else {
+        // If it failed with a 4xx error (Client Error), it usually means invalid data.
+        // We should delete it to unblock the queue, unless it's Auth (401/403) or Rate Limit (429).
+        // Common Wavelog 400: "Station Profile not found", "Missing fields", "Duplicate" (sometimes)
+        if (status >= 400 && status < 500 && status != 401 && status != 403 && status != 429) {
+           print("FLUSH: Permanent Error ($status). Deleting QSO ID ${qso.id}");
+           await DatabaseService().deleteSessionQso(qso.id!);
+        }
       }
       
       current++;
