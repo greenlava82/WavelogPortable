@@ -54,6 +54,9 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   String _opGrid = "Loading...";
   double? _opLat;
   double? _opLon;
+  
+  // Comment
+  String _comment = "";
 
   // History & Reports
   bool _isLoadingHistory = true;
@@ -191,6 +194,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       country: _opCountry,
       potaList: potaRefs.join(','), 
       sotaRef: sotaRefs.isNotEmpty ? sotaRefs.first : null,
+      comment: _comment,
     );
 
     if (!mounted) return;
@@ -378,6 +382,39 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     );
   }
 
+  void _showCommentDialog() {
+    TextEditingController controller = TextEditingController(text: _comment);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Add Comment"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: "Enter comment...",
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _comment = controller.text;
+              });
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showModePicker() {
     showDialog(
       context: context,
@@ -431,7 +468,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   }
 
   void _showProfileEditor() {
-    final nameCtrl = TextEditingController(text: (_opName == "Loading..." || _opName == "Looking up...") ? "" : _opName);
+    final nameCtrl = TextEditingController(text: (_opName == "Loading..." || _opName == "Looking up..." || _opName == "Unknown") ? "" : _opName);
     final gridCtrl = TextEditingController(text: (_opGrid == "Loading..." || _opGrid == "...") ? "" : _opGrid);
     final cityCtrl = TextEditingController(text: (_opCity == "Loading..." || _opCity == "...") ? "" : _opCity);
     final stateCtrl = TextEditingController(text: (_opState == "..." || _opState == "---") ? "" : _opState);
@@ -892,6 +929,29 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                   ),
                 ),
                 
+                const SizedBox(width: 10),
+
+                Expanded(
+                  flex: 1,
+                  child: GestureDetector(
+                    onTap: _showCommentDialog,
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _comment.isNotEmpty ? Colors.amber[100] : Colors.white,
+                        border: Border.all(
+                          color: _comment.isNotEmpty ? Colors.amber : Colors.grey[400]!
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.edit_note, // Pencil on notepad icon
+                        color: _comment.isNotEmpty ? Colors.amber[900] : Colors.grey[600]
+                      ),
+                    ),
+                  ),
+                ),
+
                 const SizedBox(width: 10),
                 
                 Expanded(

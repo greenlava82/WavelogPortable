@@ -15,6 +15,7 @@ class SessionQso {
   final String? qth;
   final String? state;
   final String? country;
+  final String? comment;
   final bool isUploaded;
 
   SessionQso({
@@ -34,6 +35,7 @@ class SessionQso {
     this.qth,
     this.state,
     this.country,
+    this.comment,
     this.isUploaded = false,
   });
 
@@ -55,6 +57,7 @@ class SessionQso {
       'qth': qth,
       'state': state,
       'country': country,
+      'comment': comment,
       'is_uploaded': isUploaded ? 1 : 0,
     };
   }
@@ -77,6 +80,7 @@ class SessionQso {
       qth: map['qth'],
       state: map['state'],
       country: map['country'],
+      comment: map['comment'],
       isUploaded: map['is_uploaded'] == 1,
     );
   }

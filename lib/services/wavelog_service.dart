@@ -100,6 +100,7 @@ class WavelogService {
     String? country,
     String? potaList,
     String? sotaRef,
+    String? comment,
     int? overrideStationId, // Optional override
   }) async {
     
@@ -152,6 +153,7 @@ class WavelogService {
     if (qth != null && qth.isNotEmpty) add("QTH", qth);
     if (state != null && state.isNotEmpty) add("STATE", state);
     if (country != null && country.isNotEmpty) add("COUNTRY", country);
+    if (comment != null && comment.isNotEmpty) add("COMMENT", comment);
     
     // --- UPDATED: Use Application-Specific tags for Wavelog ---
     

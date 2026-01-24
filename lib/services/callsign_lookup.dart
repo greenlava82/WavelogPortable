@@ -3,6 +3,7 @@
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
 import 'wavelog_service.dart';
+import 'database_service.dart';
 
 class HamProfile {
   final String callsign;
@@ -30,12 +31,40 @@ class HamProfile {
   factory HamProfile.empty() {
     return HamProfile(
       callsign: "---",
-      name: "Not Found",
+      name: "Unknown", // Changed from "Not Found"
       licenseClass: "---",
       city: "---",
       state: "---",
       country: "---",
       grid: "---",
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'callsign': callsign,
+      'name': name,
+      'license_class': licenseClass,
+      'city': city,
+      'state': state,
+      'country': country,
+      'grid': grid,
+      'lat': lat,
+      'lon': lon,
+    };
+  }
+
+  factory HamProfile.fromMap(Map<String, dynamic> map) {
+    return HamProfile(
+      callsign: map['callsign'] ?? "---",
+      name: map['name'] ?? "Unknown",
+      licenseClass: map['license_class'] ?? "---",
+      city: map['city'] ?? "---",
+      state: map['state'] ?? "---",
+      country: map['country'] ?? "---",
+      grid: map['grid'] ?? "---",
+      lat: map['lat'],
+      lon: map['lon'],
     );
   }
 
@@ -72,8 +101,23 @@ class CallsignLookup {
   static String? _qrzSessionKey;
 
   static Future<HamProfile> fetch(String callsign) async {
-    // Simplified: Always use QRZ (Removed Callook fallback)
-    return await _fetchQrz(callsign);
+    // 1. Try Online (QRZ)
+    HamProfile profile = await _fetchQrz(callsign);
+    
+    // 2. If Found Online, Cache It
+    if (profile.name != "Unknown" && profile.name != "Not Found") {
+       await DatabaseService().cacheCallsign(profile.toMap());
+       return profile;
+    }
+
+    // 3. If Not Found Online (or Offline), Check Cache
+    final cachedData = await DatabaseService().getCachedCallsign(callsign);
+    if (cachedData != null) {
+      return HamProfile.fromMap(cachedData);
+    }
+
+    // 4. Return Empty (Unknown)
+    return HamProfile.empty();
   }
 
   static Future<HamProfile> _fetchQrz(String callsign) async {

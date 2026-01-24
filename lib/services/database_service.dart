@@ -24,7 +24,7 @@ class DatabaseService {
     return await openDatabase(
       path,
       // INCREASE VERSION to trigger upgrade
-      version: 3, 
+      version: 5, 
       onCreate: (db, version) async {
         await _createTables(db);
       },
@@ -72,6 +72,25 @@ class DatabaseService {
             )
           ''');
         }
+        if (oldVersion < 4) {
+          await db.execute('''
+            CREATE TABLE callsign_cache (
+              callsign TEXT PRIMARY KEY,
+              name TEXT,
+              license_class TEXT,
+              city TEXT,
+              state TEXT,
+              country TEXT,
+              grid TEXT,
+              lat REAL,
+              lon REAL,
+              timestamp INTEGER
+            )
+          ''');
+        }
+        if (oldVersion < 5) {
+          await db.execute('ALTER TABLE session_qsos ADD COLUMN comment TEXT');
+        }
       },
     );
   }
@@ -115,8 +134,23 @@ class DatabaseService {
         qth TEXT,
         state TEXT,
         country TEXT,
+        comment TEXT,
         is_uploaded INTEGER,
         FOREIGN KEY(session_id) REFERENCES sessions(id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE callsign_cache (
+        callsign TEXT PRIMARY KEY,
+        name TEXT,
+        license_class TEXT,
+        city TEXT,
+        state TEXT,
+        country TEXT,
+        grid TEXT,
+        lat REAL,
+        lon REAL,
+        timestamp INTEGER
       )
     ''');
   }
@@ -224,6 +258,33 @@ class DatabaseService {
   Future<int> getOfflineQueueSize() async {
     final db = await database;
     return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM offline_qsos')) ?? 0;
+  }
+
+  // --- CALLSIGN CACHE METHODS ---
+
+  Future<Map<String, dynamic>?> getCachedCallsign(String callsign) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'callsign_cache',
+      where: 'callsign = ?',
+      whereArgs: [callsign.toUpperCase()],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) return maps.first;
+    return null;
+  }
+
+  Future<void> cacheCallsign(Map<String, dynamic> profile) async {
+    final db = await database;
+    await db.insert(
+      'callsign_cache',
+      {
+        ...profile,
+        'callsign': profile['callsign'].toString().toUpperCase(),
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // --- SEARCH FUNCTIONS ---
