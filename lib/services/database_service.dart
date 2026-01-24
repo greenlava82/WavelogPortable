@@ -184,6 +184,11 @@ class DatabaseService {
       whereArgs: [id]
     );
   }
+
+  Future<void> deleteSessionQso(int id) async {
+    final db = await database;
+    await db.delete('session_qsos', where: 'id = ?', whereArgs: [id]);
+  }
   
   Future<bool> checkSessionDupe(int sessionId, String callsign, String band, String mode) async {
     final db = await database;

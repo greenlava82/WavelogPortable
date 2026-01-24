@@ -530,7 +530,8 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     const EdgeInsets badgePadding = EdgeInsets.symmetric(horizontal: 8, vertical: 4);
     const double fontSize = 12.0;
     
-    if (_historyStatus.isWorked) {
+    // 1. Session Duplicate -> RED REPEAT
+    if (_historyStatus.isSessionDuplicate) {
       return Container(
         padding: badgePadding,
         decoration: BoxDecoration(
@@ -547,7 +548,47 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
           )
         ),
       );
-    } else {
+    } 
+    // 2. Exact Match (Band/Mode) -> BLUE WORKED
+    else if (_historyStatus.isWorkedMode || _historyStatus.isWorkedBand) {
+       return Container(
+        padding: badgePadding,
+        decoration: BoxDecoration(
+          color: Colors.blue[100],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.blue)
+        ),
+        child: Text(
+          "WORKED", 
+          style: TextStyle(
+            color: Colors.blue[900], 
+            fontSize: fontSize, 
+            fontWeight: FontWeight.bold
+          )
+        ),
+      );
+    }
+    // 3. General Match (Different Band) -> LIGHT BLUE WORKED
+    else if (_historyStatus.isWorked) {
+       return Container(
+        padding: badgePadding,
+        decoration: BoxDecoration(
+          color: Colors.lightBlue[50], // Lighter
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.lightBlue)
+        ),
+        child: Text(
+          "WORKED", 
+          style: TextStyle(
+            color: Colors.lightBlue[900], 
+            fontSize: fontSize, 
+            fontWeight: FontWeight.bold
+          )
+        ),
+      );
+    } 
+    // 4. New -> GREEN NEW
+    else {
       return Container(
         padding: badgePadding,
         decoration: BoxDecoration(
