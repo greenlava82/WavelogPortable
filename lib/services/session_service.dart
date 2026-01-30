@@ -82,6 +82,24 @@ class SessionService extends ChangeNotifier {
     return maps.map((m) => Session.fromMap(m)).toList();
   }
 
+  Future<List<SessionQso>> getSessionQsos(int sessionId) async {
+    final db = DatabaseService();
+    final maps = await db.getSessionQsos(sessionId);
+    return maps.map((m) => SessionQso.fromMap(m)).toList();
+  }
+
+  Future<List<SessionQso>> searchSessionQsos(int sessionId, String query) async {
+    final db = DatabaseService();
+    final maps = await db.searchSessionQsos(sessionId, query);
+    return maps.map((m) => SessionQso.fromMap(m)).toList();
+  }
+  
+  Future<void> updateQso(SessionQso qso) async {
+    if (qso.id == null) return;
+    await DatabaseService().updateSessionQso(qso.toMap());
+    notifyListeners();
+  }
+
   Future<int> getQsoCount(int sessionId) async {
     return await DatabaseService().getSessionQsoCount(sessionId);
   }
