@@ -187,7 +187,7 @@ class _EditQsoScreenState extends State<EditQsoScreen> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedBand,
+                    initialValue: _selectedBand,
                     decoration: const InputDecoration(labelText: "Band", border: OutlineInputBorder()),
                     items: _bands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
                     onChanged: (v) => setState(() => _selectedBand = v!),
@@ -196,7 +196,7 @@ class _EditQsoScreenState extends State<EditQsoScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedMode,
+                    initialValue: _selectedMode,
                     decoration: const InputDecoration(labelText: "Mode", border: OutlineInputBorder()),
                     items: _modes.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                     onChanged: (v) => setState(() => _selectedMode = v!),
