@@ -97,7 +97,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
       
       // Wait a tick for state to update
       Future.delayed(Duration.zero, () {
-        _showSyncDialog(isFromToggle: true);
+        if (mounted) _showSyncDialog(isFromToggle: true);
       });
     }
   }
@@ -156,10 +156,12 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
     
     // Check if we are actually online (unless we just toggled it off)
     if (SessionService().isOfflineMode && !isFromToggle) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Must be Online to Sync! Disable Offline Mode first.")));
       return;
     }
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -167,9 +169,12 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
     );
 
     List<Map<String, String>> stations = await WavelogService.fetchStations(url, key);
+    
+    if (!mounted) return;
     Navigator.pop(context); // Close spinner
 
     if (stations.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to fetch stations. Check settings/internet.")));
       // If failed and came from toggle, maybe revert?
       if (isFromToggle) {
@@ -181,6 +186,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
     // 2. Show Picker
     String? selectedStationId;
     
+    if (!mounted) return;
     await showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -240,6 +246,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
        // Optional: Update progress UI
     });
 
+    if (!mounted) return;
     Navigator.pop(context); // Close loader
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sync Complete!")));
   }
