@@ -216,12 +216,32 @@ class DatabaseService {
     return await db.insert('session_qsos', qso);
   }
   
+  Future<void> updateSessionQso(Map<String, dynamic> qso) async {
+    final db = await database;
+    await db.update(
+      'session_qsos', 
+      qso,
+      where: 'id = ?',
+      whereArgs: [qso['id']]
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getSessionQsos(int sessionId) async {
     final db = await database;
     return await db.query(
       'session_qsos',
       where: 'session_id = ?',
       whereArgs: [sessionId],
+      orderBy: 'timestamp DESC'
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> searchSessionQsos(int sessionId, String query) async {
+    final db = await database;
+    return await db.query(
+      'session_qsos',
+      where: 'session_id = ? AND (callsign LIKE ? OR name LIKE ? OR comment LIKE ?)',
+      whereArgs: [sessionId, '%$query%', '%$query%', '%$query%'],
       orderBy: 'timestamp DESC'
     );
   }

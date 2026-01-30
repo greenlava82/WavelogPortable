@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/session.dart';
 import '../services/session_service.dart';
 import '../config/theme.dart';
+import 'session_log_screen.dart';
 
 class SessionsListScreen extends StatefulWidget {
   const SessionsListScreen({super.key});
@@ -144,7 +145,10 @@ class _SessionsListScreenState extends State<SessionsListScreen> {
                       ],
                     ),
                     onTap: () {
-                      if (!isActive) _resumeSession(session);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => SessionLogScreen(session: session)),
+                      );
                     },
                   );
                 },
