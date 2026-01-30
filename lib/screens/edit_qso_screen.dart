@@ -137,6 +137,31 @@ class _EditQsoScreenState extends State<EditQsoScreen> {
     }
   }
 
+  Future<void> _delete() async {
+    if (widget.qso.id == null) return;
+    
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete QSO?"),
+        content: Text("Delete contact with ${widget.qso.callsign}?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text("Delete")
+          )
+        ],
+      )
+    );
+
+    if (confirm == true) {
+      await SessionService().deleteQso(widget.qso.id!);
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,6 +170,7 @@ class _EditQsoScreenState extends State<EditQsoScreen> {
         backgroundColor: AppTheme.primaryColor, 
         foregroundColor: Colors.white,
         actions: [
+          IconButton(icon: const Icon(Icons.delete), onPressed: _delete),
           IconButton(icon: const Icon(Icons.save), onPressed: _save)
         ],
       ),

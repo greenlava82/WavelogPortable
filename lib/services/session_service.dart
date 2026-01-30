@@ -100,6 +100,11 @@ class SessionService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> deleteQso(int qsoId) async {
+    await DatabaseService().deleteSessionQso(qsoId);
+    notifyListeners();
+  }
+
   Future<int> getQsoCount(int sessionId) async {
     return await DatabaseService().getSessionQsoCount(sessionId);
   }
