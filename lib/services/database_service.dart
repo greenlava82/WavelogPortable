@@ -6,11 +6,15 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'database_constants.dart';
+import '../locator.dart';
 
 class DatabaseService {
-  static final DatabaseService _instance = DatabaseService._internal();
-  factory DatabaseService() => _instance;
-  DatabaseService._internal();
+  // Factory that returns the singleton from Locator
+  factory DatabaseService() => locator<DatabaseService>();
+
+  // Actual constructor used by Locator
+  DatabaseService.create();
 
   static Database? _db;
 
@@ -33,64 +37,64 @@ class DatabaseService {
         if (oldVersion < 2) {
           // Add the new table if upgrading from version 1
           await db.execute('''
-            CREATE TABLE offline_qsos (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              payload TEXT,
-              timestamp INTEGER
+            CREATE TABLE ${DatabaseConstants.tableOfflineQsos} (
+              ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+              ${DatabaseConstants.colPayload} TEXT,
+              ${DatabaseConstants.colTimestamp} INTEGER
             )
           ''');
         }
         if (oldVersion < 3) {
            await db.execute('''
-            CREATE TABLE sessions (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT,
-              start_time INTEGER,
-              end_time INTEGER,
-              is_active INTEGER
+            CREATE TABLE ${DatabaseConstants.tableSessions} (
+              ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+              ${DatabaseConstants.colName} TEXT,
+              ${DatabaseConstants.colStartTime} INTEGER,
+              ${DatabaseConstants.colEndTime} INTEGER,
+              ${DatabaseConstants.colIsActive} INTEGER
             )
           ''');
           await db.execute('''
-            CREATE TABLE session_qsos (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              session_id INTEGER,
-              callsign TEXT,
-              band TEXT,
-              mode TEXT,
-              freq REAL,
-              timestamp INTEGER,
-              rst_sent TEXT,
-              rst_rcvd TEXT,
-              pota_ref TEXT,
-              sota_ref TEXT,
-              grid TEXT,
-              name TEXT,
-              qth TEXT,
-              state TEXT,
-              country TEXT,
-              is_uploaded INTEGER,
-              FOREIGN KEY(session_id) REFERENCES sessions(id)
+            CREATE TABLE ${DatabaseConstants.tableSessionQsos} (
+              ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+              ${DatabaseConstants.colSessionId} INTEGER,
+              ${DatabaseConstants.colCallsign} TEXT,
+              ${DatabaseConstants.colBand} TEXT,
+              ${DatabaseConstants.colMode} TEXT,
+              ${DatabaseConstants.colFreq} REAL,
+              ${DatabaseConstants.colTimestamp} INTEGER,
+              ${DatabaseConstants.colRstSent} TEXT,
+              ${DatabaseConstants.colRstRcvd} TEXT,
+              ${DatabaseConstants.colPotaRef} TEXT,
+              ${DatabaseConstants.colSotaRef} TEXT,
+              ${DatabaseConstants.colGrid} TEXT,
+              ${DatabaseConstants.colName} TEXT,
+              ${DatabaseConstants.colQth} TEXT,
+              ${DatabaseConstants.colState} TEXT,
+              ${DatabaseConstants.colCountry} TEXT,
+              ${DatabaseConstants.colIsUploaded} INTEGER,
+              FOREIGN KEY(${DatabaseConstants.colSessionId}) REFERENCES ${DatabaseConstants.tableSessions}(${DatabaseConstants.colId})
             )
           ''');
         }
         if (oldVersion < 4) {
           await db.execute('''
-            CREATE TABLE callsign_cache (
-              callsign TEXT PRIMARY KEY,
-              name TEXT,
+            CREATE TABLE ${DatabaseConstants.tableCallsignCache} (
+              ${DatabaseConstants.colCallsign} TEXT PRIMARY KEY,
+              ${DatabaseConstants.colName} TEXT,
               license_class TEXT,
               city TEXT,
-              state TEXT,
-              country TEXT,
-              grid TEXT,
+              ${DatabaseConstants.colState} TEXT,
+              ${DatabaseConstants.colCountry} TEXT,
+              ${DatabaseConstants.colGrid} TEXT,
               lat REAL,
               lon REAL,
-              timestamp INTEGER
+              ${DatabaseConstants.colTimestamp} INTEGER
             )
           ''');
         }
         if (oldVersion < 5) {
-          await db.execute('ALTER TABLE session_qsos ADD COLUMN comment TEXT');
+          await db.execute('ALTER TABLE ${DatabaseConstants.tableSessionQsos} ADD COLUMN ${DatabaseConstants.colComment} TEXT');
         }
       },
     );
@@ -98,60 +102,60 @@ class DatabaseService {
 
   // Helper to create all tables (used in onCreate)
   Future<void> _createTables(Database db) async {
-    await db.execute('CREATE TABLE pota (reference TEXT PRIMARY KEY, name TEXT, location TEXT)');
-    await db.execute('CREATE TABLE sota (reference TEXT PRIMARY KEY, name TEXT, region TEXT)');
+    await db.execute('CREATE TABLE ${DatabaseConstants.tablePota} (${DatabaseConstants.colReference} TEXT PRIMARY KEY, ${DatabaseConstants.colName} TEXT, ${DatabaseConstants.colLocation} TEXT)');
+    await db.execute('CREATE TABLE ${DatabaseConstants.tableSota} (${DatabaseConstants.colReference} TEXT PRIMARY KEY, ${DatabaseConstants.colName} TEXT, ${DatabaseConstants.colRegion} TEXT)');
     // NEW TABLE
     await db.execute('''
-      CREATE TABLE offline_qsos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        payload TEXT,
-        timestamp INTEGER
+      CREATE TABLE ${DatabaseConstants.tableOfflineQsos} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colPayload} TEXT,
+        ${DatabaseConstants.colTimestamp} INTEGER
       )
     ''');
     await db.execute('''
-      CREATE TABLE sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        start_time INTEGER,
-        end_time INTEGER,
-        is_active INTEGER
+      CREATE TABLE ${DatabaseConstants.tableSessions} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colName} TEXT,
+        ${DatabaseConstants.colStartTime} INTEGER,
+        ${DatabaseConstants.colEndTime} INTEGER,
+        ${DatabaseConstants.colIsActive} INTEGER
       )
     ''');
     await db.execute('''
-      CREATE TABLE session_qsos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
-        callsign TEXT,
-        band TEXT,
-        mode TEXT,
-        freq REAL,
-        timestamp INTEGER,
-        rst_sent TEXT,
-        rst_rcvd TEXT,
-        pota_ref TEXT,
-        sota_ref TEXT,
-        grid TEXT,
-        name TEXT,
-        qth TEXT,
-        state TEXT,
-        country TEXT,
-        comment TEXT,
-        is_uploaded INTEGER,
-        FOREIGN KEY(session_id) REFERENCES sessions(id)
+      CREATE TABLE ${DatabaseConstants.tableSessionQsos} (
+        ${DatabaseConstants.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+        ${DatabaseConstants.colSessionId} INTEGER,
+        ${DatabaseConstants.colCallsign} TEXT,
+        ${DatabaseConstants.colBand} TEXT,
+        ${DatabaseConstants.colMode} TEXT,
+        ${DatabaseConstants.colFreq} REAL,
+        ${DatabaseConstants.colTimestamp} INTEGER,
+        ${DatabaseConstants.colRstSent} TEXT,
+        ${DatabaseConstants.colRstRcvd} TEXT,
+        ${DatabaseConstants.colPotaRef} TEXT,
+        ${DatabaseConstants.colSotaRef} TEXT,
+        ${DatabaseConstants.colGrid} TEXT,
+        ${DatabaseConstants.colName} TEXT,
+        ${DatabaseConstants.colQth} TEXT,
+        ${DatabaseConstants.colState} TEXT,
+        ${DatabaseConstants.colCountry} TEXT,
+        ${DatabaseConstants.colComment} TEXT,
+        ${DatabaseConstants.colIsUploaded} INTEGER,
+        FOREIGN KEY(${DatabaseConstants.colSessionId}) REFERENCES ${DatabaseConstants.tableSessions}(${DatabaseConstants.colId})
       )
     ''');
     await db.execute('''
-      CREATE TABLE callsign_cache (
-        callsign TEXT PRIMARY KEY,
-        name TEXT,
+      CREATE TABLE ${DatabaseConstants.tableCallsignCache} (
+        ${DatabaseConstants.colCallsign} TEXT PRIMARY KEY,
+        ${DatabaseConstants.colName} TEXT,
         license_class TEXT,
         city TEXT,
-        state TEXT,
-        country TEXT,
-        grid TEXT,
+        ${DatabaseConstants.colState} TEXT,
+        ${DatabaseConstants.colCountry} TEXT,
+        ${DatabaseConstants.colGrid} TEXT,
         lat REAL,
         lon REAL,
-        timestamp INTEGER
+        ${DatabaseConstants.colTimestamp} INTEGER
       )
     ''');
   }
@@ -161,15 +165,15 @@ class DatabaseService {
   Future<int> createSession(Map<String, dynamic> session) async {
     final db = await database;
     // Deactivate others? Maybe not enforced by DB, but by logic.
-    return await db.insert('sessions', session);
+    return await db.insert(DatabaseConstants.tableSessions, session);
   }
 
   Future<int> closeSession(int id, int endTime) async {
     final db = await database;
     return await db.update(
-      'sessions', 
-      {'is_active': 0, 'end_time': endTime},
-      where: 'id = ?', 
+      DatabaseConstants.tableSessions, 
+      {DatabaseConstants.colIsActive: 0, DatabaseConstants.colEndTime: endTime},
+      where: '${DatabaseConstants.colId} = ?', 
       whereArgs: [id]
     );
   }
@@ -177,9 +181,9 @@ class DatabaseService {
   Future<Map<String, dynamic>?> getActiveSession() async {
     final db = await database;
     final List<Map<String, dynamic>> res = await db.query(
-      'sessions',
-      where: 'is_active = 1',
-      orderBy: 'start_time DESC',
+      DatabaseConstants.tableSessions,
+      where: '${DatabaseConstants.colIsActive} = 1',
+      orderBy: '${DatabaseConstants.colStartTime} DESC',
       limit: 1,
     );
     if (res.isNotEmpty) return res.first;
@@ -189,68 +193,68 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> getSessions() async {
     final db = await database;
     return await db.query(
-      'sessions',
-      orderBy: 'start_time DESC',
+      DatabaseConstants.tableSessions,
+      orderBy: '${DatabaseConstants.colStartTime} DESC',
     );
   }
 
   Future<void> deleteSession(int id) async {
     final db = await database;
     await db.transaction((txn) async {
-      await txn.delete('session_qsos', where: 'session_id = ?', whereArgs: [id]);
-      await txn.delete('sessions', where: 'id = ?', whereArgs: [id]);
+      await txn.delete(DatabaseConstants.tableSessionQsos, where: '${DatabaseConstants.colSessionId} = ?', whereArgs: [id]);
+      await txn.delete(DatabaseConstants.tableSessions, where: '${DatabaseConstants.colId} = ?', whereArgs: [id]);
     });
   }
 
   Future<void> reopenSession(int id) async {
     final db = await database;
     await db.update(
-      'sessions',
-      {'is_active': 1, 'end_time': null},
-      where: 'id = ?',
+      DatabaseConstants.tableSessions,
+      {DatabaseConstants.colIsActive: 1, DatabaseConstants.colEndTime: null},
+      where: '${DatabaseConstants.colId} = ?',
       whereArgs: [id],
     );
   }
 
   Future<int> insertSessionQso(Map<String, dynamic> qso) async {
     final db = await database;
-    return await db.insert('session_qsos', qso);
+    return await db.insert(DatabaseConstants.tableSessionQsos, qso);
   }
   
   Future<void> updateSessionQso(Map<String, dynamic> qso) async {
     final db = await database;
     await db.update(
-      'session_qsos', 
+      DatabaseConstants.tableSessionQsos, 
       qso,
-      where: 'id = ?',
-      whereArgs: [qso['id']]
+      where: '${DatabaseConstants.colId} = ?',
+      whereArgs: [qso[DatabaseConstants.colId]]
     );
   }
 
   Future<List<Map<String, dynamic>>> getSessionQsos(int sessionId) async {
     final db = await database;
     return await db.query(
-      'session_qsos',
-      where: 'session_id = ?',
+      DatabaseConstants.tableSessionQsos,
+      where: '${DatabaseConstants.colSessionId} = ?',
       whereArgs: [sessionId],
-      orderBy: 'timestamp DESC'
+      orderBy: '${DatabaseConstants.colTimestamp} DESC'
     );
   }
 
   Future<List<Map<String, dynamic>>> searchSessionQsos(int sessionId, String query) async {
     final db = await database;
     return await db.query(
-      'session_qsos',
-      where: 'session_id = ? AND (callsign LIKE ? OR name LIKE ? OR comment LIKE ?)',
+      DatabaseConstants.tableSessionQsos,
+      where: '${DatabaseConstants.colSessionId} = ? AND (${DatabaseConstants.colCallsign} LIKE ? OR ${DatabaseConstants.colName} LIKE ? OR ${DatabaseConstants.colComment} LIKE ?)',
       whereArgs: [sessionId, '%$query%', '%$query%', '%$query%'],
-      orderBy: 'timestamp DESC'
+      orderBy: '${DatabaseConstants.colTimestamp} DESC'
     );
   }
 
   Future<int> getSessionQsoCount(int sessionId) async {
     final db = await database;
     return Sqflite.firstIntValue(await db.rawQuery(
-      'SELECT COUNT(*) FROM session_qsos WHERE session_id = ?', 
+      'SELECT COUNT(*) FROM ${DatabaseConstants.tableSessionQsos} WHERE ${DatabaseConstants.colSessionId} = ?', 
       [sessionId]
     )) ?? 0;
   }
@@ -258,32 +262,32 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> getUnuploadedSessionQsos() async {
     final db = await database;
     return await db.query(
-      'session_qsos',
-      where: 'is_uploaded = 0',
-      orderBy: 'timestamp ASC'
+      DatabaseConstants.tableSessionQsos,
+      where: '${DatabaseConstants.colIsUploaded} = 0',
+      orderBy: '${DatabaseConstants.colTimestamp} ASC'
     );
   }
 
   Future<int> markSessionQsoUploaded(int id) async {
     final db = await database;
     return await db.update(
-      'session_qsos',
-      {'is_uploaded': 1},
-      where: 'id = ?',
+      DatabaseConstants.tableSessionQsos,
+      {DatabaseConstants.colIsUploaded: 1},
+      where: '${DatabaseConstants.colId} = ?',
       whereArgs: [id]
     );
   }
 
   Future<void> deleteSessionQso(int id) async {
     final db = await database;
-    await db.delete('session_qsos', where: 'id = ?', whereArgs: [id]);
+    await db.delete(DatabaseConstants.tableSessionQsos, where: '${DatabaseConstants.colId} = ?', whereArgs: [id]);
   }
   
   Future<bool> checkSessionDupe(int sessionId, String callsign, String band, String mode) async {
     final db = await database;
     final res = await db.query(
-      'session_qsos',
-      where: 'session_id = ? AND callsign = ? AND band = ? AND mode = ?',
+      DatabaseConstants.tableSessionQsos,
+      where: '${DatabaseConstants.colSessionId} = ? AND ${DatabaseConstants.colCallsign} = ? AND ${DatabaseConstants.colBand} = ? AND ${DatabaseConstants.colMode} = ?',
       whereArgs: [sessionId, callsign, band, mode]
     );
     return res.isNotEmpty;
@@ -293,26 +297,26 @@ class DatabaseService {
 
   Future<void> saveOfflineQso(Map<String, dynamic> payload) async {
     final db = await database;
-    await db.insert('offline_qsos', {
-      'payload': jsonEncode(payload), // Store the whole JSON blob
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    await db.insert(DatabaseConstants.tableOfflineQsos, {
+      DatabaseConstants.colPayload: jsonEncode(payload),
+      DatabaseConstants.colTimestamp: DateTime.now().millisecondsSinceEpoch,
     });
     developer.log("OFFLINE: QSO Saved to Queue");
   }
 
   Future<List<Map<String, dynamic>>> getOfflineQsos() async {
     final db = await database;
-    return await db.query('offline_qsos', orderBy: 'timestamp ASC');
+    return await db.query(DatabaseConstants.tableOfflineQsos, orderBy: '${DatabaseConstants.colTimestamp} ASC');
   }
 
   Future<void> deleteOfflineQso(int id) async {
     final db = await database;
-    await db.delete('offline_qsos', where: 'id = ?', whereArgs: [id]);
+    await db.delete(DatabaseConstants.tableOfflineQsos, where: '${DatabaseConstants.colId} = ?', whereArgs: [id]);
   }
   
   Future<int> getOfflineQueueSize() async {
     final db = await database;
-    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM offline_qsos')) ?? 0;
+    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM ${DatabaseConstants.tableOfflineQsos}')) ?? 0;
   }
 
   // --- CALLSIGN CACHE METHODS ---
@@ -320,8 +324,8 @@ class DatabaseService {
   Future<Map<String, dynamic>?> getCachedCallsign(String callsign) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
-      'callsign_cache',
-      where: 'callsign = ?',
+      DatabaseConstants.tableCallsignCache,
+      where: '${DatabaseConstants.colCallsign} = ?',
       whereArgs: [callsign.toUpperCase()],
       limit: 1,
     );
@@ -332,11 +336,11 @@ class DatabaseService {
   Future<void> cacheCallsign(Map<String, dynamic> profile) async {
     final db = await database;
     await db.insert(
-      'callsign_cache',
+      DatabaseConstants.tableCallsignCache,
       {
         ...profile,
-        'callsign': profile['callsign'].toString().toUpperCase(),
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        DatabaseConstants.colCallsign: profile['callsign'].toString().toUpperCase(),
+        DatabaseConstants.colTimestamp: DateTime.now().millisecondsSinceEpoch,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -347,15 +351,15 @@ class DatabaseService {
   Future<List<Map<String, String>>> searchPota(String query) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
-      'pota',
-      where: 'reference LIKE ? OR name LIKE ?',
+      DatabaseConstants.tablePota,
+      where: '${DatabaseConstants.colReference} LIKE ? OR ${DatabaseConstants.colName} LIKE ?',
       whereArgs: ['%$query%', '%$query%'],
       limit: 20,
     );
     return maps.map((e) => {
-      'ref': e['reference'] as String,
-      'name': e['name'] as String,
-      'loc': e['location'] as String,
+      'ref': e[DatabaseConstants.colReference] as String,
+      'name': e[DatabaseConstants.colName] as String,
+      'loc': e[DatabaseConstants.colLocation] as String,
       'type': 'POTA'
     }).toList();
   }
@@ -363,15 +367,15 @@ class DatabaseService {
   Future<List<Map<String, String>>> searchSota(String query) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
-      'sota',
-      where: 'reference LIKE ? OR name LIKE ?',
+      DatabaseConstants.tableSota,
+      where: '${DatabaseConstants.colReference} LIKE ? OR ${DatabaseConstants.colName} LIKE ?',
       whereArgs: ['%$query%', '%$query%'],
       limit: 20,
     );
     return maps.map((e) => {
-      'ref': e['reference'] as String,
-      'name': e['name'] as String,
-      'loc': e['region'] as String,
+      'ref': e[DatabaseConstants.colReference] as String,
+      'name': e[DatabaseConstants.colName] as String,
+      'loc': e[DatabaseConstants.colRegion] as String,
       'type': 'SOTA'
     }).toList();
   }
@@ -403,16 +407,16 @@ class DatabaseService {
         onStatus("Updating POTA Tables...");
         
         await db.transaction((txn) async {
-          await txn.delete('pota');
+          await txn.delete(DatabaseConstants.tablePota);
           Batch batch = txn.batch();
           
           for (int i = 1; i < rows.length; i++) {
             var row = rows[i];
             if (row.length > 4) {
-              batch.insert('pota', {
-                'reference': row[0].toString(), // "K-0001"
-                'name': row[1].toString(),      // "Name of Park"
-                'location': row[4].toString()   // "GA"
+              batch.insert(DatabaseConstants.tablePota, {
+                DatabaseConstants.colReference: row[0].toString(), // "K-0001"
+                DatabaseConstants.colName: row[1].toString(),      // "Name of Park"
+                DatabaseConstants.colLocation: row[4].toString()   // "GA"
               });
             }
           }
@@ -447,16 +451,16 @@ class DatabaseService {
         onStatus("Updating SOTA Tables...");
 
         await db.transaction((txn) async {
-          await txn.delete('sota');
+          await txn.delete(DatabaseConstants.tableSota);
           Batch batch = txn.batch();
 
           for (int i = 1; i < rows.length; i++) {
             var row = rows[i];
             if (row.length > 3) {
-              batch.insert('sota', {
-                'reference': row[0].toString(), // "W1/HA-001"
-                'name': row[3].toString(),      // "Mount Washington"
-                'region': row[2].toString(),    // "White Mountains"
+              batch.insert(DatabaseConstants.tableSota, {
+                DatabaseConstants.colReference: row[0].toString(), // "W1/HA-001"
+                DatabaseConstants.colName: row[3].toString(),      // "Mount Washington"
+                DatabaseConstants.colRegion: row[2].toString(),    // "White Mountains"
               });
             }
           }

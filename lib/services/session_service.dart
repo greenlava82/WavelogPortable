@@ -6,11 +6,17 @@ import '../models/lookup_result.dart';
 import 'database_service.dart';
 import 'wavelog_service.dart';
 import 'settings_service.dart';
+import '../locator.dart';
 
 class SessionService extends ChangeNotifier {
-  static final SessionService _instance = SessionService._internal();
-  factory SessionService() => _instance;
-  SessionService._internal();
+  // Use locator for the singleton instance
+  factory SessionService() => locator<SessionService>();
+  
+  // Constructor for Locator (and testing)
+  SessionService.create({DatabaseService? databaseService})
+      : _dbService = databaseService ?? locator<DatabaseService>();
+
+  final DatabaseService _dbService;
 
   Session? _currentSession;
   bool _isOfflineMode = false;
@@ -19,7 +25,7 @@ class SessionService extends ChangeNotifier {
   bool get isOfflineMode => _isOfflineMode;
 
   Future<void> init() async {
-    final db = DatabaseService();
+    final db = _dbService; // Ensure initialized if needed, though we use injected instance now
     
     // Load Offline Mode
     String offline = await AppSettings.getString(AppSettings.keyOfflineMode, defaultValue: 'false');
@@ -53,7 +59,7 @@ class SessionService extends ChangeNotifier {
       isActive: true,
     );
     
-    final db = DatabaseService();
+    final db = _dbService;
     int id = await db.createSession(newSession.toMap());
     
     // Reload to get ID
@@ -69,7 +75,7 @@ class SessionService extends ChangeNotifier {
 
   Future<void> stopSession() async {
     if (_currentSession != null && _currentSession!.id != null) {
-      final db = DatabaseService();
+      final db = _dbService;
       await db.closeSession(_currentSession!.id!, DateTime.now().millisecondsSinceEpoch);
       _currentSession = null;
       notifyListeners();
@@ -77,36 +83,36 @@ class SessionService extends ChangeNotifier {
   }
 
   Future<List<Session>> getSessions() async {
-    final db = DatabaseService();
+    final db = _dbService;
     final maps = await db.getSessions();
     return maps.map((m) => Session.fromMap(m)).toList();
   }
 
   Future<List<SessionQso>> getSessionQsos(int sessionId) async {
-    final db = DatabaseService();
+    final db = _dbService;
     final maps = await db.getSessionQsos(sessionId);
     return maps.map((m) => SessionQso.fromMap(m)).toList();
   }
 
   Future<List<SessionQso>> searchSessionQsos(int sessionId, String query) async {
-    final db = DatabaseService();
+    final db = _dbService;
     final maps = await db.searchSessionQsos(sessionId, query);
     return maps.map((m) => SessionQso.fromMap(m)).toList();
   }
   
   Future<void> updateQso(SessionQso qso) async {
     if (qso.id == null) return;
-    await DatabaseService().updateSessionQso(qso.toMap());
+    await _dbService.updateSessionQso(qso.toMap());
     notifyListeners();
   }
 
   Future<void> deleteQso(int qsoId) async {
-    await DatabaseService().deleteSessionQso(qsoId);
+    await _dbService.deleteSessionQso(qsoId);
     notifyListeners();
   }
 
   Future<int> getQsoCount(int sessionId) async {
-    return await DatabaseService().getSessionQsoCount(sessionId);
+    return await _dbService.getSessionQsoCount(sessionId);
   }
 
   Future<void> resumeSession(Session session) async {
@@ -114,7 +120,7 @@ class SessionService extends ChangeNotifier {
       await stopSession();
     }
     
-    final db = DatabaseService();
+    final db = _dbService;
     if (session.id != null) {
       await db.reopenSession(session.id!);
       
@@ -133,7 +139,7 @@ class SessionService extends ChangeNotifier {
   Future<void> deleteSession(Session session) async {
     if (session.id == null) return;
     
-    final db = DatabaseService();
+    final db = _dbService;
     await db.deleteSession(session.id!);
     
     if (_currentSession?.id == session.id) {
@@ -188,7 +194,7 @@ class SessionService extends ChangeNotifier {
       isUploaded: false, // Default to false
     );
 
-    final db = DatabaseService();
+    final db = _dbService;
     int qsoId = await db.insertSessionQso(qso.toMap());
     debugPrint("LOGGED QSO Locally: ID $qsoId");
 
@@ -224,7 +230,7 @@ class SessionService extends ChangeNotifier {
 
   /// Checks for duplicates in the CURRENT session + Online if applicable.
   Future<LookupResult> checkDupe(String callsign, String band, String mode) async {
-    final db = DatabaseService();
+    final db = _dbService;
     LookupResult result = LookupResult();
 
     // 1. Check Local Session (if active)
@@ -262,7 +268,7 @@ class SessionService extends ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> getQueue() async {
-    final db = DatabaseService();
+    final db = _dbService;
     return await db.getUnuploadedSessionQsos();
   }
 
@@ -306,14 +312,14 @@ class SessionService extends ChangeNotifier {
 
       // 3. Handle Result
       if (status == 200 || status == 201) {
-        await DatabaseService().markSessionQsoUploaded(qso.id!);
+        await _dbService.markSessionQsoUploaded(qso.id!);
       } else {
         // If it failed with a 4xx error (Client Error), it usually means invalid data.
         // We should delete it to unblock the queue, unless it's Auth (401/403) or Rate Limit (429).
         // Common Wavelog 400: "Station Profile not found", "Missing fields", "Duplicate" (sometimes)
         if (status >= 400 && status < 500 && status != 401 && status != 403 && status != 429) {
            debugPrint("FLUSH: Permanent Error ($status). Deleting QSO ID ${qso.id}");
-           await DatabaseService().deleteSessionQso(qso.id!);
+           await _dbService.deleteSessionQso(qso.id!);
         }
       }
       
