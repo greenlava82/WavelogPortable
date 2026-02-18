@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'config/theme.dart';
 import 'screens/input_screen.dart';
+import 'locator.dart';
 
 void main() {
+  setupLocator();
   runApp(const WavelogPortable());
 }
 
