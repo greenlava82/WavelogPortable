@@ -1,3 +1,4 @@
+import '../models/call_history.dart';
 import '../models/log_entry.dart';
 import '../models/session_qso.dart';
 import 'database_service.dart';
@@ -38,5 +39,20 @@ class LogbookService {
     final rows = await (db ?? DatabaseService()).getRecentSessionQsos(limit);
     final entries = rows.map((r) => LogEntry.fromSessionQso(SessionQso.fromMap(r))).toList();
     return LogbookResult(entries, LogbookSource.phone, note);
+  }
+
+  /// Past contacts with [callsign] from Wavelog, or null when that isn't
+  /// available (offline, v1 key, missing scope, network error). Callers just
+  /// hide the history then; the worked-before badge still works.
+  static Future<CallHistory?> callHistory(
+    String callsign, {
+    required bool offline,
+    int limit = 5,
+  }) async {
+    if (offline || callsign.trim().isEmpty) return null;
+    final url = await AppSettings.getString(AppSettings.keyWavelogUrl);
+    final key = await AppSettings.getString(AppSettings.keyWavelogKey);
+    final (history, _) = await WavelogService.fetchCallHistory(url, key, callsign, limit);
+    return history;
   }
 }

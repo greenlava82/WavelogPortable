@@ -11,6 +11,9 @@ import '../models/session_qso.dart';
 import '../widgets/radio_dial.dart';
 import '../widgets/location_map_dialog.dart';
 import '../widgets/activity_selection_dialog.dart';
+import '../widgets/call_history_card.dart';
+import '../models/call_history.dart';
+import '../services/logbook_service.dart';
 import '../services/callsign_lookup.dart';
 import '../services/session_service.dart';
 import '../services/database_service.dart';
@@ -60,6 +63,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
   // History & Reports
   bool _isLoadingHistory = true;
   LookupResult _historyStatus = LookupResult(); 
+  CallHistory? _callHistory; // past contacts from Wavelog (v2 only)
   final RstReport _sentRst = RstReport();
   final RstReport _rcvdRst = RstReport();
 
@@ -70,6 +74,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
     _loadPreferences(); 
     
     Future.delayed(Duration.zero, () => _checkHistory()); 
+    _loadCallHistory();
     
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isManualTime && mounted) {
@@ -130,6 +135,16 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         _isLoadingHistory = false;
       });
     }
+  }
+
+  /// Past contacts with this call, for the history card. Doesn't depend on
+  /// band or mode, so it's fetched once.
+  Future<void> _loadCallHistory() async {
+    final history = await LogbookService.callHistory(
+      widget.callsign,
+      offline: SessionService().isOfflineMode,
+    );
+    if (mounted) setState(() => _callHistory = history);
   }
 
   // --- 3. LOGIC: CALLSIGN LOOKUP ---
@@ -600,7 +615,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
           border: Border.all(color: Colors.blue)
         ),
         child: Text(
-          "WORKED", 
+          _workedLabel, 
           style: TextStyle(
             color: Colors.blue[900], 
             fontSize: fontSize, 
@@ -619,7 +634,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
           border: Border.all(color: Colors.lightBlue)
         ),
         child: Text(
-          "WORKED", 
+          _workedLabel, 
           style: TextStyle(
             color: Colors.lightBlue[900], 
             fontSize: fontSize, 
@@ -642,6 +657,39 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
         ),
       );
     }
+  }
+
+  bool get _hasCallHistory => (_callHistory?.total ?? 0) > 0;
+
+  /// "WORKED 5×" when Wavelog told us how many contacts there are.
+  String get _workedLabel => _hasCallHistory ? 'WORKED ${_callHistory!.total}×' : 'WORKED';
+
+  /// The badge opens the station's history when we have it; otherwise the
+  /// session log, as before (the Band header also opens the session log).
+  void _onHistoryBadgeTap() {
+    if (!_hasCallHistory) {
+      _showSessionLog();
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(widget.callsign),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        content: CallHistoryCard(history: _callHistory!, band: _selectedBand, mode: _selectedMode),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showSessionLog();
+            },
+            child: const Text('Session log'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
   }
 
   Future<void> _showSessionLog() async {
@@ -746,7 +794,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                         const Spacer(), 
 
                         InkWell(
-                          onTap: _showSessionLog,
+                          onTap: _onHistoryBadgeTap,
                           child: _buildHistoryBadge(),
                         ),
                         
@@ -820,6 +868,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
               ),
               ),
             ),
+
             
             const SizedBox(height: 10),
 

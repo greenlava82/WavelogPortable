@@ -11,6 +11,7 @@ import '../services/database_service.dart';
 import '../utils/adif_mode.dart';
 import 'wavelog_endpoint.dart';
 import '../models/log_entry.dart';
+import '../models/call_history.dart';
 
 class WavelogService {
   static final Logger _logger = Logger('WavelogService');
@@ -131,6 +132,35 @@ class WavelogService {
       return (null, _v2Error(response));
     } catch (e) {
       _logger.severe("Error fetching recent QSOs: $e");
+      return (null, 'Could not reach Wavelog');
+    }
+  }
+
+  /// Past contacts with [callsign] (exact match), newest first, plus the
+  /// total count. API v2 only (qso:read scope).
+  static Future<(CallHistory?, String?)> fetchCallHistory(
+      String baseUrl, String apiKey, String callsign, int limit) async {
+    final ep = WavelogEndpoint(baseUrl, apiKey);
+    if (!ep.isConfigured) return (null, 'Wavelog URL and key are not set');
+    if (!ep.isV2) return (null, 'Contact history needs an API v2 (wl2_) key');
+
+    try {
+      final response = await http.get(
+        ep.uri('qso', {'callsign': callsign.trim().toUpperCase(), 'per_page': '$limit'}),
+        headers: ep.headers,
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final data = body['data'];
+        if (data is List) {
+          final recent = data.map((q) => LogEntry.fromWavelogV2(q as Map<String, dynamic>)).toList();
+          final total = body['meta']?['total'];
+          return (CallHistory(total is int ? total : recent.length, recent), null);
+        }
+      }
+      return (null, _v2Error(response));
+    } catch (e) {
+      _logger.severe("Error fetching call history: $e");
       return (null, 'Could not reach Wavelog');
     }
   }
