@@ -9,6 +9,7 @@ import '../models/rst_report.dart';
 import '../models/lookup_result.dart';
 import '../services/database_service.dart';
 import '../utils/adif_mode.dart';
+import 'wavelog_endpoint.dart';
 
 class WavelogService {
   static final Logger _logger = Logger('WavelogService');
@@ -21,9 +22,8 @@ class WavelogService {
     
     _logger.info("FLUSH: Found ${queue.length} pending QSOs. Retrying...");
     
-    String baseUrl = await AppSettings.getString(AppSettings.keyWavelogUrl);
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    if (baseUrl.endsWith('/index.php/api')) baseUrl = baseUrl.substring(0, baseUrl.length - 14);
+    // Legacy queue: rows hold complete v1 request bodies, so always resend to v1.
+    final baseUrl = WavelogEndpoint.normalizeBaseUrl(await AppSettings.getString(AppSettings.keyWavelogUrl));
     final Uri apiUri = Uri.parse("$baseUrl/index.php/api/qso");
 
     for (var row in queue) {
@@ -51,42 +51,74 @@ class WavelogService {
     }
   }
 
+  /// Station profiles for the Settings picker. Returns an empty list on any
+  /// failure; use [fetchStationsWithError] to also get the reason.
   static Future<List<Map<String, String>>> fetchStations(String baseUrl, String apiKey) async {
-    if (baseUrl.isEmpty || apiKey.isEmpty) return [];
-    
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    if (baseUrl.endsWith('/index.php/api')) baseUrl = baseUrl.substring(0, baseUrl.length - 14);
-    apiKey = apiKey.trim(); 
+    final (stations, _) = await fetchStationsWithError(baseUrl, apiKey);
+    return stations;
+  }
 
-    final Uri postUri = Uri.parse("$baseUrl/index.php/api/station_info");
+  static Future<(List<Map<String, String>>, String?)> fetchStationsWithError(String baseUrl, String apiKey) async {
+    final ep = WavelogEndpoint(baseUrl, apiKey);
+    if (!ep.isConfigured) return (<Map<String, String>>[], 'Enter URL and Key first');
 
     try {
+      if (ep.isV2) {
+        final response = await http.get(ep.uri('station'), headers: ep.headers);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body)['data'];
+          if (data is List) {
+            return (
+              data.map<Map<String, String>>((s) => {
+                'id': s['id'].toString(),
+                'name': (s['name'] ?? 'Station ${s['id']}').toString(),
+              }).toList(),
+              null,
+            );
+          }
+        }
+        return (<Map<String, String>>[], _v2Error(response));
+      }
+
       var response = await http.post(
-        postUri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"key": apiKey}),
+        ep.uri('station_info'),
+        headers: ep.headers,
+        body: jsonEncode({"key": ep.apiKey}),
       );
 
       if (response.statusCode == 401 || response.statusCode == 404 || response.statusCode == 405) {
-        final Uri getUri = Uri.parse("$baseUrl/index.php/api/station_info/$apiKey");
-        response = await http.get(getUri);
+        response = await http.get(ep.uri('station_info/${ep.apiKey}'));
       }
 
       if (response.statusCode == 200) {
         final dynamic decoded = jsonDecode(response.body);
         if (decoded is List) {
-          return decoded.map<Map<String, String>>((json) {
-            return {
-              'id': json['station_id'].toString(),
-              'name': json['station_profile_name'].toString(),
-            };
-          }).toList();
+          return (
+            decoded.map<Map<String, String>>((json) {
+              return {
+                'id': json['station_id'].toString(),
+                'name': json['station_profile_name'].toString(),
+              };
+            }).toList(),
+            null,
+          );
         }
       }
+      return (<Map<String, String>>[], 'Wavelog returned HTTP ${response.statusCode}');
     } catch (e) {
       _logger.severe("Error fetching stations: $e");
+      return (<Map<String, String>>[], 'Could not reach Wavelog');
     }
-    return [];
+  }
+
+  /// Human-readable message from a v2 error envelope:
+  /// {"error": {"code": "...", "message": "..."}}
+  static String _v2Error(http.Response response) {
+    try {
+      final message = jsonDecode(response.body)['error']?['message'];
+      if (message is String && message.isNotEmpty) return message;
+    } catch (_) {}
+    return 'Wavelog returned HTTP ${response.statusCode}';
   }
 
   static Future<int> postQso({
@@ -114,14 +146,9 @@ class WavelogService {
     String myGrid = await AppSettings.getString(AppSettings.keyMyGrid); 
     String stationCall = await AppSettings.getString(AppSettings.keyMyCallsign);
 
-    if (baseUrl.isEmpty || apiKey.isEmpty) return 0; 
+    final ep = WavelogEndpoint(baseUrl, apiKey);
+    if (!ep.isConfigured) return 0;
 
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    if (baseUrl.endsWith('/index.php/api')) baseUrl = baseUrl.substring(0, baseUrl.length - 14);
-    apiKey = apiKey.trim();
-
-    final Uri apiUri = Uri.parse("$baseUrl/index.php/api/qso");
-    
     int stationProfileId = -1;
     // Use override if provided, else use settings
     if (overrideStationId != null) {
@@ -180,23 +207,30 @@ class WavelogService {
     _logger.fine(adif.toString());
     _logger.fine("------------------------------------------------");
 
-    Map<String, dynamic> payload = {
-      "key": apiKey,
-      "station_profile_id": stationProfileId,
-      "type": "adif",
-      "string": adif.toString() 
-    };
+    // v1 takes the key in the body; v2 takes it in the Authorization header
+    // and imports ADIF via import_type=adif. Both return 200/201 on success.
+    final Map<String, dynamic> payload = ep.isV2
+        ? {
+            "station_profile_id": stationProfileId,
+            "import_type": "adif",
+            "adif": adif.toString(),
+          }
+        : {
+            "key": ep.apiKey,
+            "station_profile_id": stationProfileId,
+            "type": "adif",
+            "string": adif.toString(),
+          };
 
     _logger.fine("--- POST QSO DEBUG ---");
-    _logger.fine("URL: $apiUri");
+    _logger.fine("URL: ${ep.uri('qso')} (API ${ep.version.name})");
     _logger.fine("Station ID: $stationProfileId");
-    _logger.fine("Payload: ${jsonEncode(payload)}");
     _logger.fine("----------------------");
 
     try {
       final response = await http.post(
-        apiUri,
-        headers: {"Content-Type": "application/json"},
+        ep.uri('qso'),
+        headers: ep.headers,
         body: jsonEncode(payload),
       );
 
@@ -215,29 +249,41 @@ class WavelogService {
     String baseUrl = await AppSettings.getString(AppSettings.keyWavelogUrl);
     String apiKey = await AppSettings.getString(AppSettings.keyWavelogKey);
 
-    if (baseUrl.isEmpty || apiKey.isEmpty) return LookupResult();
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    if (baseUrl.endsWith('/index.php/api')) baseUrl = baseUrl.substring(0, baseUrl.length - 14);
+    final ep = WavelogEndpoint(baseUrl, apiKey);
+    if (!ep.isConfigured) return LookupResult();
 
-    final Uri apiUri = Uri.parse("$baseUrl/index.php/api/private_lookup");
-
-    Map<String, dynamic> payload = {
-      "key": apiKey,
-      "callsign": callsign,
-      "band": band,
-      // Wavelog matches worked-before on the ADIF MODE column only
-      "mode": AdifMode.fromAppMode(mode).mode
-    };
+    // Wavelog matches worked-before on the ADIF MODE column only
+    final adifMode = AdifMode.fromAppMode(mode).mode;
 
     try {
-      final response = await http.post(
-        apiUri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(payload),
-      );
+      final http.Response response;
+      if (ep.isV2) {
+        response = await http.get(
+          ep.uri('lookup', {
+            'callsign': callsign,
+            'band': band,
+            'mode': adifMode,
+            'detail': 'full',
+          }),
+          headers: ep.headers,
+        );
+      } else {
+        response = await http.post(
+          ep.uri('private_lookup'),
+          headers: ep.headers,
+          body: jsonEncode({
+            "key": ep.apiKey,
+            "callsign": callsign,
+            "band": band,
+            "mode": adifMode,
+          }),
+        );
+      }
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        // v2 wraps results in {"data": ...}; v1 returns them at the top level
+        final data = ep.isV2 ? decoded['data'] : decoded;
         return LookupResult(
           isWorked: data['call_worked'] ?? false,
           isWorkedBand: data['call_worked_band'] ?? false,
