@@ -32,7 +32,8 @@ class _EditQsoScreenState extends State<EditQsoScreen> {
   late double _rstRcvdT;
   
   final List<String> _bands = bandPlan.keys.toList();
-  final List<String> _modes = ['SSB', 'CW', 'FM', 'AM', 'FT8', 'FT4', 'JS8', 'PSK31', 'RTTY'];
+  // Keep in sync with the modes the logging screen offers, so any logged QSO can be edited
+  final List<String> _modes = masterModeList;
 
   @override
   void initState() {
