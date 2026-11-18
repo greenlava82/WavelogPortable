@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/session.dart';
 import '../services/session_service.dart';
 import '../services/wavelog_service.dart';
 import '../services/settings_service.dart';
@@ -15,22 +14,28 @@ class SessionDrawer extends StatefulWidget {
 }
 
 class _SessionDrawerState extends State<SessionDrawer> {
+  // Flutter removes the drawer from the tree once it closes, so dialogs and
+  // async follow-up work must use the screen's (Scaffold's) context, which
+  // stays mounted. Capture it before closing the drawer.
+  BuildContext get _hostContext => Scaffold.of(context).context;
+
   void _toggleOffline(bool value) {
+    final host = _hostContext;
     SessionService().setOfflineMode(value);
 
     // If turning OFF offline mode (going online), prompt to sync
     if (!value) {
       // Wait a tick for state to update
       Future.delayed(Duration.zero, () {
-        if (mounted) _showSyncDialog(isFromToggle: true);
+        if (host.mounted) _showSyncDialog(host, isFromToggle: true);
       });
     }
   }
 
-  Future<void> _startSessionDialog() async {
+  Future<void> _startSessionDialog(BuildContext host) async {
     TextEditingController nameCtrl = TextEditingController();
     await showDialog(
-      context: context,
+      context: host,
       builder: (context) => AlertDialog(
         title: const Text("Start Session"),
         content: TextField(
@@ -54,9 +59,9 @@ class _SessionDrawerState extends State<SessionDrawer> {
     );
   }
 
-  void _stopSession() {
+  void _stopSession(BuildContext host) {
     showDialog(
-      context: context,
+      context: host,
       builder: (context) => AlertDialog(
         title: const Text("End Session?"),
         content: Text("Stop logging to '${SessionService().currentSession?.name}'?"),
@@ -74,33 +79,32 @@ class _SessionDrawerState extends State<SessionDrawer> {
     );
   }
 
-  Future<void> _showSyncDialog({bool isFromToggle = false}) async {
+  Future<void> _showSyncDialog(BuildContext host, {bool isFromToggle = false}) async {
     // 1. Fetch stations first (assume online now)
     String url = await AppSettings.getString(AppSettings.keyWavelogUrl);
     String key = await AppSettings.getString(AppSettings.keyWavelogKey);
     
     // Check if we are actually online (unless we just toggled it off)
     if (SessionService().isOfflineMode && !isFromToggle) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Must be Online to Sync! Disable Offline Mode first.")));
+      if (!host.mounted) return;
+      ScaffoldMessenger.of(host).showSnackBar(const SnackBar(content: Text("Must be Online to Sync! Disable Offline Mode first.")));
       return;
     }
 
-    if (!mounted) return;
+    if (!host.mounted) return;
     showDialog(
-      context: context,
+      context: host,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     List<Map<String, String>> stations = await WavelogService.fetchStations(url, key);
     
-    if (!mounted) return;
-    Navigator.pop(context); // Close spinner
+    if (!host.mounted) return;
+    Navigator.pop(host); // Close spinner
 
     if (stations.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to fetch stations. Check settings/internet.")));
+      ScaffoldMessenger.of(host).showSnackBar(const SnackBar(content: Text("Failed to fetch stations. Check settings/internet.")));
       // If failed and came from toggle, maybe revert?
       if (isFromToggle) {
          SessionService().setOfflineMode(true);
@@ -111,9 +115,8 @@ class _SessionDrawerState extends State<SessionDrawer> {
     // 2. Show Picker
     String? selectedStationId;
     
-    if (!mounted) return;
     await showDialog(
-      context: context,
+      context: host,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -149,7 +152,7 @@ class _SessionDrawerState extends State<SessionDrawer> {
               ElevatedButton(
                 onPressed: selectedStationId == null ? null : () {
                   Navigator.pop(context);
-                  _performSync(int.parse(selectedStationId!));
+                  _performSync(host, int.parse(selectedStationId!));
                 },
                 child: const Text("Sync Now"),
               )
@@ -160,9 +163,9 @@ class _SessionDrawerState extends State<SessionDrawer> {
     );
   }
 
-  Future<void> _performSync(int stationId) async {
+  Future<void> _performSync(BuildContext host, int stationId) async {
     showDialog(
-      context: context,
+      context: host,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()), // Simple loader
     );
@@ -171,9 +174,9 @@ class _SessionDrawerState extends State<SessionDrawer> {
        // Optional: Update progress UI
     });
 
-    if (!mounted) return;
-    Navigator.pop(context); // Close loader
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sync Complete!")));
+    if (!host.mounted) return;
+    Navigator.pop(host); // Close loader
+    ScaffoldMessenger.of(host).showSnackBar(const SnackBar(content: Text("Sync Complete!")));
   }
 
   @override
@@ -215,11 +218,12 @@ class _SessionDrawerState extends State<SessionDrawer> {
                 subtitle: Text(sessionName == null ? "Group contacts (e.g. POTA)" : "Current: $sessionName"),
                 leading: Icon(sessionName == null ? Icons.play_arrow : Icons.stop, color: sessionName == null ? Colors.green : Colors.red),
                 onTap: () {
+                  final host = _hostContext;
                   Navigator.pop(context); // Close drawer
                   if (sessionName == null) {
-                    _startSessionDialog();
+                    _startSessionDialog(host);
                   } else {
-                    _stopSession();
+                    _stopSession(host);
                   }
                 },
               ),
@@ -243,8 +247,9 @@ class _SessionDrawerState extends State<SessionDrawer> {
                 ),
                 leading: const Icon(Icons.sync),
                 onTap: () {
+                   final host = _hostContext;
                    Navigator.pop(context);
-                   _showSyncDialog();
+                   _showSyncDialog(host);
                 },
               ),
               const Divider(),
