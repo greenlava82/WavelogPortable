@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
 import '../services/wavelog_service.dart';
+import '../services/wavelog_endpoint.dart';
 import '../services/database_service.dart';
 import '../widgets/app_about_dialog.dart';
 import '../utils/park_list_status.dart';
@@ -51,9 +52,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String grid = await AppSettings.getString(AppSettings.keyMyGrid);
     String url = await AppSettings.getString(AppSettings.keyWavelogUrl);
 
-    // Migration: Remove legacy API path if present
-    if (url.endsWith('/index.php/api')) {
-      url = url.substring(0, url.length - 14);
+    // Migration: keep only the install root (strips /index.php/api, /api/v2, ...)
+    final normalized = WavelogEndpoint.normalizeBaseUrl(url);
+    if (normalized != url) {
+      url = normalized;
       await AppSettings.saveString(AppSettings.keyWavelogUrl, url);
     }
 
@@ -87,11 +89,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isLoadingStations = true);
 
-    List<Map<String, String>> stations = await WavelogService.fetchStations(
-      _wavelogUrlCtrl.text, 
-      _wavelogKeyCtrl.text
+    final (stations, error) = await WavelogService.fetchStationsWithError(
+      _wavelogUrlCtrl.text,
+      _wavelogKeyCtrl.text,
     );
 
+    if (!mounted) return;
     setState(() {
       _isLoadingStations = false;
       if (stations.isNotEmpty) {
@@ -104,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Found ${stations.length} profiles"), backgroundColor: Colors.green));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No profiles found (Check URL/Key)"), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("No profiles found: ${error ?? 'check URL/Key'}"), backgroundColor: Colors.orange));
       }
     });
   }
@@ -112,6 +115,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveAll() async {
     await AppSettings.saveString(AppSettings.keyMyCallsign, _callsignCtrl.text.toUpperCase());
     await AppSettings.saveString(AppSettings.keyMyGrid, _gridCtrl.text.toUpperCase());
+    _wavelogUrlCtrl.text = WavelogEndpoint.normalizeBaseUrl(_wavelogUrlCtrl.text);
+    _wavelogKeyCtrl.text = _wavelogKeyCtrl.text.trim();
     await AppSettings.saveString(AppSettings.keyWavelogUrl, _wavelogUrlCtrl.text);
     await AppSettings.saveString(AppSettings.keyWavelogKey, _wavelogKeyCtrl.text);
     await AppSettings.saveString(AppSettings.keyWavelogStationId, _selectedStationId ?? "");
@@ -169,7 +174,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           _buildHeader("Wavelog Integration"),
           _buildTextField("Wavelog URL", _wavelogUrlCtrl, hint: "https://log.mysite.com", icon: Icons.link),
-          _buildTextField("API Key", _wavelogKeyCtrl, icon: Icons.vpn_key),
+          _buildTextField("API Key (v1 or v2 wl2_...)", _wavelogKeyCtrl, icon: Icons.vpn_key),
+          ListenableBuilder(
+            listenable: Listenable.merge([_wavelogUrlCtrl, _wavelogKeyCtrl]),
+            builder: (context, _) {
+              final info = describeWavelogKey(_wavelogUrlCtrl.text, _wavelogKeyCtrl.text);
+              if (info.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Text(info, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              );
+            },
+          ),
           
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
