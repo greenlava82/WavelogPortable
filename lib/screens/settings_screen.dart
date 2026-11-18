@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
@@ -253,6 +254,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
           ),
+          if (kDebugMode)
+            ListTile(
+              leading: const Icon(Icons.notifications_active),
+              title: const Text("Send test reminder"),
+              subtitle: const Text("Development builds only: shows the 21:45 UTC warning now."),
+              onTap: StreakReminder.showTest,
+            ),
 
           _buildHeader("Databases"),
           ListTile(

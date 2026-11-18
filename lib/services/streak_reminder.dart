@@ -173,6 +173,21 @@ class StreakReminder {
     await _notifications.cancel(id: notificationId);
   }
 
+  /// Shows the warning right away, as it would look at 21:45Z with the
+  /// current streak (development builds only, to check its look).
+  static Future<void> showTest() async {
+    await allowPermissionPrompt();
+    await _requestPermission();
+    final status = await StreakService.current(offline: true);
+    final days = (status?.days ?? 0) > 0 ? status!.days : 1;
+    await _notifications.show(
+      id: notificationId,
+      title: title(days),
+      body: body(const Duration(hours: 2, minutes: 15)),
+      notificationDetails: _details,
+    );
+  }
+
   /// Runs in the background at ~21:45Z (Android).
   static Future<void> runBackgroundCheck() async {
     if (!await _enabledWithV2Key()) return;
