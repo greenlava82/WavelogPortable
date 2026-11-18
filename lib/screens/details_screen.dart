@@ -196,6 +196,11 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       comment: _comment,
     );
 
+    // Remember the parks/summits so the next contact can recall them.
+    if (saved && _activeActivations.isNotEmpty) {
+      await AppSettings.saveLastActivities(_activeActivations);
+    }
+
     if (!mounted) return;
 
     if (saved) {
