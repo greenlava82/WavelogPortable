@@ -1,44 +1,124 @@
-# K1GLV Wavelog Mobile
+<p align="center">
+  <img src="assets/images/branding.png" alt="Wavelog Portable" width="420">
+</p>
 
-A specialized, offline-first amateur radio logging application built with Flutter. Designed to interface directly with a self-hosted [Wavelog](https://github.com/wavelog/wavelog) instance via API.
+# Wavelog Portable
 
-## 🚀 Current Features
+A fast, field-friendly amateur radio logger for Android (and iPhone), built with Flutter. It logs straight to your own [Wavelog](https://github.com/wavelog/wavelog) server and keeps working when the signal drops, which makes it a good fit for POTA and SOTA activations and for park hunting.
 
-### 📡 Logging & Wavelog Integration
-* **Direct API Upload:** Logs contacts immediately to Wavelog in ADIF format.
-* **Dupe Checking:** Checks `private_lookup` endpoint on Wavelog to show "WORKED" (Band/Mode specific) or "NEW" badges in real-time.
-* **Station Profiles:** Dynamically fetches and allows selection of Station Profile IDs from the server.
-* **Offline Queueing:** (Partial) UI state is saved locally between sessions.
+Developed by K1GLV. Powered by (and with thanks to) the Wavelog project.
 
-###  Parks & Summits (POTA / SOTA)
-* **Offline Database:** Downloads official POTA (`all_parks.csv`) and SOTA (`summitslist.csv`) databases (~15MB) to local SQLite storage.
-* **Instant Search:** Search for parks or summits by Reference ID (e.g., `K-1234`) or Name (e.g., `Greylock`) without internet access.
-* **ADIF Compliance:** correctly maps selections to `POTA_REF` and `SOTA_REF` tags for Wavelog ingestion.
+## Features
 
-### 🗺️ Mapping & Location
-* **Grid Square Visualization:** Converts 4 or 6-character Maidenhead grid squares to Lat/Lon.
-* **Offline Maps:** Uses `flutter_map` with OpenStreetMap tiles to visualize contact locations.
-* **Callsign Lookup:** Hybrid lookup strategy using **Callook.info** (US/Free) and **QRZ XML** (International/Backup).
+### Logging
 
-### 🎛️ Radio Control UI
-* **Virtual VFO:** Custom "Radio Dial" widget for frequency selection with 1kHz stepping.
-* **Smart Mode:** Remembers the last used frequency/mode per band.
-* **RST Sliders:** Rapid entry for Signal Reports (59 / 599).
+- **Big callsign keypad.** Type the call on the main screen and tap → to open Log Contact.
+- **Band and frequency dial.** Swipe the band and VFO dials, or use −/+ for 1 kHz steps. The app remembers the last frequency and mode on each band.
+- **Modes.** SSB, CW, FM, AM, DMR, C4FM, D-STAR, FreeDV, FT8, FT4, JS8, RTTY, PSK31 and SSTV. Choose which ones show in Settings → Active Modes. FreeDV is logged the way ADIF expects (`MODE=DIGITALVOICE`, `SUBMODE=FREEDV`).
+- **Signal reports.** Defaults to 59 / 599; tap either report to change it.
+- **Callsign lookup.** Name, location and grid come from QRZ (needs your QRZ login). Each result is cached on the phone, so a call you've looked up before still fills in offline.
+- **Map.** Tap the map icon on Log Contact to see where the other station is. Labels are in English worldwide. See [Map](#map).
 
-## 🛠️ Technical Stack
-* **Framework:** Flutter (Dart)
-* **Storage:** `shared_preferences` (Settings), `sqflite` (POTA/SOTA DB).
-* **Networking:** `http` (Wavelog API, QRZ, POTA Downloads).
-* **Mapping:** `flutter_map`, `latlong2`.
+### Worked before and contact history
 
-## 📋 Todo / Roadmap
+- **NEW / WORKED badge.** Shows whether you've worked the call before, and on this band and mode.
+- **Contact history** (API v2 key, online). The badge reads **WORKED 5×**. Tap it for your 5 most recent contacts with that station, with date, band and mode; rows on the same band are bold and same band and mode are blue. Wavelog matches the call exactly, so W1AW/P history isn't included for W1AW.
 
-* [ ] **Live Spot Integration:** Query POTA/SOTA "Active Spots" APIs to auto-fill park references based on the entered callsign.
-* [ ] **Offline Logging Queue:** Store logs locally if the Wavelog server is unreachable and sync when online.
-* [ ] **WWFF Support:** Add support for World Wide Flora & Fauna databases.
-* [ ] **UI Refinement:** Tablet/Landscape layout optimizations.
+### POTA and SOTA
 
-## 🔑 Setup
-1.  **Settings:** Enter your Wavelog Base URL (e.g., `https://log.mysite.com`) and API Key.
-2.  **Credentials:** Enter QRZ/HamQTH credentials for international lookups.
-3.  **Databases:** Go to Settings and tap "Download POTA/SOTA Databases" to initialize the offline search.
+- **Offline park and summit search.** Settings → Download POTA/SOTA Databases saves the official lists (about 15 MB) on the phone. Search by reference (`US-1234`, or just `1234`, including 5-digit parks) or by name.
+- **Several parks per contact.** Add as many parks as the other station is activating. They're sent to Wavelog as `POTA_REF` / `SOTA_REF`.
+- **Recall last parks.** When two operators share a park, tap the history button (🕘) at the top of **Select Activity** to add the parks from the contact you just logged. It's greyed out until you've logged a contact with a park.
+
+### Sessions and offline mode
+
+- **Sessions.** Start a session from the menu to group an activation's contacts. Manage Sessions lets you view, resume, edit or delete them.
+- **Offline mode.** Switch it on in the menu and contacts are queued on the phone. **Sync Queue** uploads them to the Station Profile you pick once you're back online.
+
+### Logbook viewer
+
+Tap the book icon on the main screen to see your latest 10, 25, 50 or 100 contacts.
+
+- With an API v2 key and a connection, the list comes from Wavelog (green), so it includes contacts logged elsewhere.
+- Otherwise (v1 key or offline) it shows the contacts logged on this phone (orange), and says why.
+
+### Daily streak
+
+A banner under the title bar shows your Wavelog streak, counted the same way as Wavelog's dashboard: consecutive UTC days with at least one contact.
+
+| Banner | Meaning |
+|---|---|
+| 🔥 **9-day streak · 10 QSOs today** (green) | You've logged today; the streak is safe. |
+| 🔥 **No contacts today · 9-day streak ends in 2h 15m** (orange) | No contact yet today. The streak ends at 00:00 UTC. |
+| 📻 **No contacts today (UTC) yet** (grey) | No streak running. |
+
+- **Reminder.** At about 21:45 UTC, if you haven't logged anything that day, the phone shows *"Your 9-day streak ends at 00:00 UTC"*, a little over two hours before the day ends. It comes from a background check, so the app doesn't need to be open. On Android the check may run a few minutes late; the notification states the actual time left. On iPhone, the reminder is set while the app is open and the streak is at risk, and cleared once you log.
+- **Counts.** Contacts logged on the phone count right away, even offline or still waiting to upload.
+- **Turning it off.** Settings → Daily Streak → **Streak tracker** hides the banner and stops the reminder.
+- **Needs** an API v2 key (`wl2_…`). With a v1 key the banner and reminder don't appear.
+
+### Map
+
+- **Online:** Esri World Street Map, which labels every country and city in English (OpenStreetMap's standard map switches language and script by region).
+- **Offline:** a low-detail world map is built into the app (about 3 MB): coastlines, borders, US/Canadian and some other state or province lines, and major cities, all in English. It shows automatically when there's no signal, down to about state level; closer in, the map goes grey until you're back online.
+
+## Setup
+
+1. **My Station.** Enter your callsign and grid square.
+2. **Wavelog Integration.**
+   - **Wavelog URL**, e.g. `https://log.mysite.com`.
+   - **API key.** Both kinds work, but a **v2 key (`wl2_…`) is recommended**: contact history, the logbook from Wavelog, and the daily streak need it. Create it in Wavelog with the scopes `station:read`, `qso:read`, `qso:write` and `lookup:read`. The app shows which API version and scopes it detected under the key field.
+   - **Station Profile.** Tap Refresh and choose the profile to log to.
+3. **Lookup Credentials (QRZ).** Your QRZ username and password, for name/location lookups (a QRZ XML subscription is needed for full data).
+4. **Databases.** Tap **Download POTA/SOTA Databases** once, on Wi-Fi, for offline park and summit search.
+5. **Daily Streak.** On by default. Allow notifications when asked to get the evening reminder.
+
+## Branding
+
+The app icon and logo are hand-drawn originals, lightly cleaned up to work as an app icon (Android adaptive icon, splash screen, Play Store). The originals and the scripts used are in [`assets/images/source`](assets/images/source); regenerate the icons with:
+
+```bash
+dart run flutter_launcher_icons
+```
+
+Development builds use the same icon with a **DEV** badge (see below).
+
+## Development
+
+Flutter 3.38 / Dart 3.10. Main packages: `sqflite`, `shared_preferences`, `http`, `flutter_map`, `workmanager`, `flutter_local_notifications`.
+
+```bash
+flutter test
+```
+
+```bash
+flutter analyze
+```
+
+### Development build next to the Play Store app
+
+Debug builds install as a separate app, **Wavelog Dev** (`com.k1glv.wavelogportable.dev`, version `x.y.z-dev`, DEV-badged icon). You can keep the Play Store version for real logging and test changes side by side. Each app has its own settings and data, and both run the streak reminder if it's switched on in both.
+
+```bash
+flutter run
+```
+
+Release builds (`flutter build appbundle`) keep the Play Store ID `com.k1glv.wavelogportable`.
+
+Development builds also add **Settings → Daily Streak → Send test reminder**, which shows the streak notification immediately, with your current streak, to check how it looks.
+
+### Rebuilding the offline map
+
+The bundled map tiles (`assets/map/{z}/{x}_{y}.png`, zoom 0–5) are drawn from public-domain [Natural Earth](https://www.naturalearthdata.com) 1:50m data by [`tool/render_offline_map.py`](tool/render_offline_map.py) (needs Pillow and pyshp). The script lists the six Natural Earth downloads it uses.
+
+```bash
+python tool/render_offline_map.py ~/natural-earth assets/map
+```
+
+## Ideas and to-do
+
+See [TODO.md](TODO.md).
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).
