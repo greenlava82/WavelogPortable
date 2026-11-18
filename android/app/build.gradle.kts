@@ -42,12 +42,16 @@ android {
         manifestPlaceholders["appLabel"] = "Wavelog Portable"
     }
 
+    // Release signing key from key.properties (kept out of git). Without it
+    // (e.g. on CI) release builds are left unsigned and debug builds still work.
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
@@ -60,9 +64,7 @@ android {
             manifestPlaceholders["appLabel"] = "Wavelog Dev"
         }
         getByName("release") {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 }
