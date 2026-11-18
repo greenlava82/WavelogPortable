@@ -18,6 +18,7 @@ class AppSettings {
   static const String keyOfflineMode = 'offline_mode';
   static const String keyPotaDownloadedAt = 'pota_downloaded_at';
   static const String keyLastActivities = 'last_activities';
+  static const String keyStreakEnabled = 'streak_enabled';
 
   static Future<void> saveString(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -74,5 +75,16 @@ class AppSettings {
     } catch (_) {
       return [];
     }
+  }
+
+  /// Daily-QSO streak banner and 21:45Z reminder. On unless switched off.
+  static Future<bool> getStreakEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyStreakEnabled) ?? true;
+  }
+
+  static Future<void> setStreakEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyStreakEnabled, enabled);
   }
 }

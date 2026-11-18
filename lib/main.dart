@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'config/theme.dart';
 import 'screens/input_screen.dart';
 import 'locator.dart';
+import 'services/streak_reminder.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   setupLocator();
+  await StreakReminder.initialize();
   runApp(const WavelogPortable());
 }
 

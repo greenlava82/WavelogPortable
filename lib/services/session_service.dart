@@ -5,6 +5,7 @@ import '../models/rst_report.dart';
 import '../models/lookup_result.dart';
 import 'database_service.dart';
 import 'wavelog_service.dart';
+import 'streak_service.dart';
 import 'settings_service.dart';
 import '../locator.dart';
 
@@ -197,6 +198,7 @@ class SessionService extends ChangeNotifier {
     final db = _dbService;
     int qsoId = await db.insertSessionQso(qso.toMap());
     debugPrint("LOGGED QSO Locally: ID $qsoId");
+    await StreakService.recordLocalQso(timeOn);
 
     // 2. Upload Logic
     if (!_isOfflineMode) {
