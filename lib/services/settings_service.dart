@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme.dart';
+import '../models/activity_ref.dart';
 
 class AppSettings {
   static const String keyMyCallsign = 'my_callsign';
@@ -15,6 +17,7 @@ class AppSettings {
   static const String keyLastMode = 'last_mode';
   static const String keyOfflineMode = 'offline_mode';
   static const String keyPotaDownloadedAt = 'pota_downloaded_at';
+  static const String keyLastActivities = 'last_activities';
 
   static Future<void> saveString(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,5 +53,26 @@ class AppSettings {
       'freq': prefs.getDouble(keyLastFreq),
       'mode': prefs.getString(keyLastMode),
     };
+  }
+
+  /// Parks/summits attached to the most recently saved contact, so the next
+  /// contact (e.g. a second operator at the same activation) can reuse them.
+  static Future<void> saveLastActivities(List<ActivityRef> refs) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(keyLastActivities, jsonEncode(refs.map((r) => r.toJson()).toList()));
+  }
+
+  static Future<List<ActivityRef>> getLastActivities() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(keyLastActivities);
+    if (raw == null || raw.isEmpty) return [];
+    try {
+      return (jsonDecode(raw) as List)
+          .map((e) => ActivityRef.fromJson(Map<String, dynamic>.from(e as Map)))
+          .where((r) => r.reference.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 }

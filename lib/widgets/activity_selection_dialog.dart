@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/database_service.dart';
 import '../models/activity_ref.dart';
 import '../config/theme.dart';
+import '../services/settings_service.dart';
 
 class ActivitySelectionDialog extends StatefulWidget {
   final List<ActivityRef> selected;
@@ -19,10 +20,30 @@ class _ActivitySelectionDialogState extends State<ActivitySelectionDialog> {
   List<Map<String, String>> _searchResults = [];
   late List<ActivityRef> _currentSelection;
 
+  /// Parks/summits from the last saved contact, for the recall button.
+  List<ActivityRef> _lastUsed = [];
+
   @override
   void initState() {
     super.initState();
     _currentSelection = List.from(widget.selected);
+    _loadLastUsed();
+  }
+
+  Future<void> _loadLastUsed() async {
+    final last = await AppSettings.getLastActivities();
+    if (mounted) setState(() => _lastUsed = last);
+  }
+
+  /// Adds the last contact's parks/summits, skipping any already selected.
+  void _recallLastUsed() {
+    setState(() {
+      for (final ref in _lastUsed) {
+        if (!_currentSelection.any((x) => x.reference == ref.reference)) {
+          _currentSelection.add(ref);
+        }
+      }
+    });
   }
 
   Future<void> _doSearch(String query) async {
@@ -83,11 +104,27 @@ class _ActivitySelectionDialogState extends State<ActivitySelectionDialog> {
                 color: AppTheme.primaryColor,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.terrain, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text("Select Activity", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Icon(Icons.terrain, color: Colors.white),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text("Select Activity",
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  ),
+                  IconButton(
+                    tooltip: _lastUsed.isEmpty
+                        ? 'No recent parks'
+                        : 'Recall last: ${_lastUsed.map((r) => r.reference).join(', ')}',
+                    icon: const Icon(Icons.history),
+                    color: Colors.white,
+                    disabledColor: Colors.white38,
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: _lastUsed.isEmpty ? null : _recallLastUsed,
+                  ),
                 ],
               ),
             ),
