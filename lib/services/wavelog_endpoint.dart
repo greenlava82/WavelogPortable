@@ -8,7 +8,7 @@
 enum WavelogApiVersion { v1, v2 }
 
 /// Scopes a v2 key needs for everything the app currently does.
-const List<String> wavelogV2RequiredScopes = ['station:read', 'qso:write', 'lookup:read'];
+const List<String> wavelogV2RequiredScopes = ['station:read', 'qso:read', 'qso:write', 'lookup:read'];
 
 /// A Wavelog server plus API key, and how to talk to it.
 class WavelogEndpoint {

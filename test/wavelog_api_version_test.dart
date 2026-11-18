@@ -52,9 +52,9 @@ void main() {
           'API v1 key\nEndpoint: https://log.example.com/index.php/api');
       expect(describeWavelogKey('https://log.example.com/', v2Key),
           'API v2 key\nEndpoint: https://log.example.com/index.php/api/v2\n'
-          'Needs scopes: station:read, qso:write, lookup:read');
+          'Needs scopes: station:read, qso:read, qso:write, lookup:read');
       expect(describeWavelogKey('', v2Key),
-          'API v2 key\nNeeds scopes: station:read, qso:write, lookup:read');
+          'API v2 key\nNeeds scopes: station:read, qso:read, qso:write, lookup:read');
     });
   });
 
