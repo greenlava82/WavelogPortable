@@ -79,6 +79,13 @@ flutter:
   assets:
     - assets/images/app_icon.png
     - assets/images/branding.png
+    # Offline world map (tool/render_offline_map.py)
+    - assets/map/0/
+    - assets/map/1/
+    - assets/map/2/
+    - assets/map/3/
+    - assets/map/4/
+    - assets/map/5/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

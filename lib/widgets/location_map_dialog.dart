@@ -5,6 +5,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../config/theme.dart';
 
+/// Esri World Street Map tiles (note the {y}/{x} order).
+const String esriStreetTiles =
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+
+/// The bundled offline map, drawn by tool/render_offline_map.py.
+const String offlineTiles = 'assets/map/{z}/{x}_{y}.png';
+const int offlineMaxZoom = 5;
+
 class LocationMapDialog extends StatelessWidget {
   final LatLng center;
   final String callsign;
@@ -36,9 +44,22 @@ class LocationMapDialog extends StatelessWidget {
                 ),
               ),
               children: [
+                // Bundled low-detail world map (zoom 0-5, English labels),
+                // underneath: it's what shows when there's no signal.
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.k1glv.logger',
+                  urlTemplate: offlineTiles,
+                  tileProvider: AssetTileProvider(),
+                  maxNativeZoom: offlineMaxZoom,
+                  // Past this it's just a blur of stretched pixels.
+                  maxZoom: offlineMaxZoom + 2,
+                ),
+                // Esri's street map labels places in English everywhere;
+                // OSM's standard tiles use each place's local language.
+                // Covers the bundled map whenever it loads.
+                TileLayer(
+                  urlTemplate: esriStreetTiles,
+                  userAgentPackageName: 'com.k1glv.wavelogportable',
+                  maxNativeZoom: 19,
                 ),
                 MarkerLayer(
                   markers: [
@@ -73,6 +94,13 @@ class LocationMapDialog extends StatelessWidget {
               ),
             ),
 
+            // Attribution (required by Esri's terms)
+            const Positioned(
+              top: 8,
+              left: 8,
+              child: _Attribution(),
+            ),
+
             // Close Button
             Positioned(
               top: 8,
@@ -87,6 +115,25 @@ class LocationMapDialog extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Attribution extends StatelessWidget {
+  const _Attribution();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Text(
+        'Powered by Esri',
+        style: TextStyle(fontSize: 10, color: Colors.black87),
       ),
     );
   }
