@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'database_constants.dart';
 import '../locator.dart';
+import '../utils/park_ref.dart';
+import 'settings_service.dart';
 
 class DatabaseService {
   // Factory that returns the singleton from Locator
@@ -350,11 +352,16 @@ class DatabaseService {
 
   Future<List<Map<String, String>>> searchPota(String query) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      DatabaseConstants.tablePota,
-      where: '${DatabaseConstants.colReference} LIKE ? OR ${DatabaseConstants.colName} LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
-      limit: 20,
+    // Also match loosely typed references ("US10073", "US 10073", "K-1234")
+    final ref = normalizeParkRef(query) ?? query;
+    const t = DatabaseConstants.tablePota;
+    const r = DatabaseConstants.colReference;
+    const n = DatabaseConstants.colName;
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      'SELECT * FROM $t WHERE $r LIKE ? OR $r LIKE ? OR $n LIKE ? '
+      // Exact reference match first, so it can't be pushed out by the limit
+      'ORDER BY CASE WHEN $r = ? THEN 0 ELSE 1 END, $r LIMIT 20',
+      ['%$query%', '%$ref%', '%$query%', ref.toUpperCase()],
     );
     return maps.map((e) => {
       'ref': e[DatabaseConstants.colReference] as String,
@@ -378,6 +385,11 @@ class DatabaseService {
       'loc': e[DatabaseConstants.colRegion] as String,
       'type': 'SOTA'
     }).toList();
+  }
+
+  Future<int> getPotaCount() async {
+    final db = await database;
+    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM ${DatabaseConstants.tablePota}')) ?? 0;
   }
 
   // --- DOWNLOAD & UPDATE FUNCTIONS ---
@@ -422,6 +434,7 @@ class DatabaseService {
           }
           await batch.commit(noResult: true);
         });
+        await AppSettings.saveString(AppSettings.keyPotaDownloadedAt, DateTime.now().toIso8601String());
         developer.log("POTA Update Complete: ${rows.length} parks.");
       }
     } catch (e) {

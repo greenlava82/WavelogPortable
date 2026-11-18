@@ -118,7 +118,7 @@ class _ActivitySelectionDialogState extends State<ActivitySelectionDialog> {
               child: TextField(
                 controller: _searchCtrl,
                 decoration: const InputDecoration(
-                  labelText: "Search (e.g. K-1234 or Blue Hills)",
+                  labelText: "Search (e.g. US-1234 or Blue Hills)",
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.search),
                   isDense: true, // Compacts the text field

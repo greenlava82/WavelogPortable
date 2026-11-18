@@ -4,6 +4,7 @@ import '../services/settings_service.dart';
 import '../services/wavelog_service.dart';
 import '../services/database_service.dart';
 import '../widgets/app_about_dialog.dart';
+import '../utils/park_list_status.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,11 +26,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _selectedStationId;
   List<Map<String, String>> _availableStations = [];
   bool _isLoadingStations = false;
+  String _parkListStatus = '';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadParkListStatus();
+  }
+
+  Future<void> _loadParkListStatus() async {
+    final count = await DatabaseService().getPotaCount();
+    final stamp = await AppSettings.getString(AppSettings.keyPotaDownloadedAt);
+    final status = parkListStatus(
+      downloadedAt: DateTime.tryParse(stamp),
+      parkCount: count,
+      now: DateTime.now(),
+    );
+    if (mounted) setState(() => _parkListStatus = status);
   }
 
   Future<void> _loadSettings() async {
@@ -204,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildHeader("Databases"),
           ListTile(
             title: const Text("Download POTA/SOTA Databases"),
-            subtitle: const Text("Required for offline search"),
+            subtitle: Text(_parkListStatus.isEmpty ? "Required for offline search" : "Parks: $_parkListStatus"),
             leading: const Icon(Icons.cloud_download),
             onTap: () async {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -214,6 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await DatabaseService().updateAllDatabases((status) {
                 // Status updates are handled via SnackBar notifications
               });
+              await _loadParkListStatus();
 
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
