@@ -39,6 +39,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "Wavelog Portable"
     }
 
     signingConfigs {
@@ -51,6 +52,13 @@ android {
     }
 
     buildTypes {
+        // Development builds install next to the Play Store app: own app ID,
+        // name and icon (src/debug/res), and their own settings and data.
+        getByName("debug") {
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            manifestPlaceholders["appLabel"] = "Wavelog Dev"
+        }
         getByName("release") {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
