@@ -10,6 +10,7 @@ import '../models/lookup_result.dart';
 import '../services/database_service.dart';
 import '../utils/adif_mode.dart';
 import 'wavelog_endpoint.dart';
+import '../models/log_entry.dart';
 
 class WavelogService {
   static final Logger _logger = Logger('WavelogService');
@@ -108,6 +109,29 @@ class WavelogService {
     } catch (e) {
       _logger.severe("Error fetching stations: $e");
       return (<Map<String, String>>[], 'Could not reach Wavelog');
+    }
+  }
+
+  /// The newest [limit] QSOs in the Wavelog logbook, newest first.
+  /// Only API v2 can list QSOs (needs the qso:read scope); for v1 keys this
+  /// returns an error message instead.
+  static Future<(List<LogEntry>?, String?)> fetchRecentQsos(String baseUrl, String apiKey, int limit) async {
+    final ep = WavelogEndpoint(baseUrl, apiKey);
+    if (!ep.isConfigured) return (null, 'Wavelog URL and key are not set');
+    if (!ep.isV2) return (null, 'Viewing the Wavelog log needs an API v2 (wl2_) key');
+
+    try {
+      final response = await http.get(ep.uri('qso', {'limit': '$limit'}), headers: ep.headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body)['data'];
+        if (data is List) {
+          return (data.map((q) => LogEntry.fromWavelogV2(q as Map<String, dynamic>)).toList(), null);
+        }
+      }
+      return (null, _v2Error(response));
+    } catch (e) {
+      _logger.severe("Error fetching recent QSOs: $e");
+      return (null, 'Could not reach Wavelog');
     }
   }
 

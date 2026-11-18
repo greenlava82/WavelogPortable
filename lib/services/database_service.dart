@@ -243,6 +243,16 @@ class DatabaseService {
     );
   }
 
+  /// Newest QSOs logged on this phone, across all sessions.
+  Future<List<Map<String, dynamic>>> getRecentSessionQsos(int limit) async {
+    final db = await database;
+    return await db.query(
+      DatabaseConstants.tableSessionQsos,
+      orderBy: '${DatabaseConstants.colTimestamp} DESC',
+      limit: limit,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> searchSessionQsos(int sessionId, String query) async {
     final db = await database;
     return await db.query(

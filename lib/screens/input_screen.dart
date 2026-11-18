@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'details_screen.dart';
 import 'settings_screen.dart';
+import 'logbook_screen.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
 import '../services/session_service.dart';
@@ -85,6 +86,16 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
             title: const Text('Wavelog Portable'), 
             backgroundColor: isOffline ? Colors.grey[800] : AppTheme.primaryColor, 
             foregroundColor: Colors.white,
+            actions: [
+              IconButton(
+                tooltip: 'Logbook',
+                icon: const Icon(Icons.menu_book),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LogbookScreen()),
+                ),
+              ),
+            ],
           ),
           drawer: const SessionDrawer(),
           body: Column(
