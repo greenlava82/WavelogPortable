@@ -16,7 +16,12 @@ Developed by K1GLV. Powered by (and with thanks to) the Wavelog project.
 - **Band and frequency dial.** Swipe the band and VFO dials, or use −/+ for 1 kHz steps. The app remembers the last frequency and mode on each band.
 - **Modes.** SSB, CW, FM, AM, DMR, C4FM, D-STAR, FreeDV, FT8, FT4, JS8, RTTY, PSK31 and SSTV. Choose which ones show in Settings → Active Modes. FreeDV is logged the way ADIF expects (`MODE=DIGITALVOICE`, `SUBMODE=FREEDV`).
 - **Signal reports.** Defaults to 59 / 599; tap either report to change it.
-- **Callsign lookup.** Name, location and grid come from QRZ (needs your QRZ login). Each result is cached on the phone, so a call you've looked up before still fills in offline.
+- **Callsign lookup.** Name, location and grid come from, in order:
+  1. QRZ, if you've entered a QRZ login in Settings (full names and licence class).
+  2. The callbook set up on your Wavelog server (QRZ, HamQTH, QRZCQ, QRZ.ru or qrzcall.eu), so the phone needs no login of its own. With HamQTH, Wavelog passes on the operator's nickname, which is usually just a first name.
+  3. What Wavelog knows from your last contact with the call, and its country.
+
+  Each result is cached on the phone, so a call you've looked up before still fills in offline.
 - **Map.** Tap the map icon on Log Contact to see where the other station is. Labels are in English worldwide. See [Map](#map).
 
 ### Worked before and contact history
@@ -69,7 +74,7 @@ A banner under the title bar shows your Wavelog streak, counted the same way as 
    - **Wavelog URL**, e.g. `https://log.mysite.com`.
    - **API key.** Both kinds work, but a **v2 key (`wl2_…`) is recommended**: contact history, the logbook from Wavelog, and the daily streak need it. Create it in Wavelog with the scopes `station:read`, `qso:read`, `qso:write` and `lookup:read`. The app shows which API version and scopes it detected under the key field.
    - **Station Profile.** Tap Refresh and choose the profile to log to.
-3. **Lookup Credentials (QRZ).** Your QRZ username and password, for name/location lookups (a QRZ XML subscription is needed for full data).
+3. **Callbook.** Set one up on your Wavelog server, in its `config.php`: for example `$config['callbook'] = 'hamqth';` with `hamqth_username` and `hamqth_password` (HamQTH is free and includes grids), or `'qrz'` with a QRZ XML subscription. A list such as `['qrz', 'hamqth']` tries each in turn. The **QRZ Login** in the app's Settings is optional; add one for full names and licence class (it's tried first).
 4. **Databases.** Tap **Download POTA/SOTA Databases** once, on Wi-Fi, for offline park and summit search.
 5. **Daily Streak.** On by default. Allow notifications when asked to get the evening reminder.
 

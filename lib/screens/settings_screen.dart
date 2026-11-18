@@ -231,7 +231,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          _buildHeader("Lookup Credentials (QRZ)"),
+          _buildHeader("QRZ Login (optional)"),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              "With a QRZ login, lookups come straight from QRZ: full names and licence class. Without one, they come from the callbook set up on your Wavelog server (with HamQTH that's usually a first name only).",
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+          ),
           _buildTextField("Username", _hamqthUserCtrl, icon: Icons.person),
           _buildTextField("Password", _hamqthPassCtrl, obscure: true, icon: Icons.lock),
           

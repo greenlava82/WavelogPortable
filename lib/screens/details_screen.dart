@@ -156,7 +156,7 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
       _opGrid = "...";
     });
 
-    HamProfile profile = await CallsignLookup.fetch(widget.callsign);
+    HamProfile profile = await CallsignLookup.fetch(widget.callsign, offline: SessionService().isOfflineMode);
 
     if (mounted) {
       setState(() {
@@ -850,9 +850,9 @@ class _QsoDetailsScreenState extends State<QsoDetailsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (_opState == "---" || _opState.isEmpty)
-                                  ? "$_opCity, $_opCountry"
-                                  : "$_opCity, $_opState, $_opCountry",
+                                [_opCity, _opState, _opCountry]
+                                    .where((p) => p.isNotEmpty && p != "---")
+                                    .join(", "),
                                 style: const TextStyle(color: Colors.black87, fontSize: 15),
                                 overflow: TextOverflow.ellipsis
                               ),
