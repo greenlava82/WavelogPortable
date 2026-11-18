@@ -1,7 +1,10 @@
 // FILE: lib/services/callsign_lookup.dart
 // ==============================
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'settings_service.dart';
+import 'wavelog_endpoint.dart';
 import 'wavelog_service.dart';
 import 'database_service.dart';
 
@@ -68,6 +71,66 @@ class HamProfile {
     );
   }
 
+  /// Has something worth showing (a name or a grid).
+  bool get isFound => (name.isNotEmpty && name != "Unknown" && name != "Not Found") || _validGrid(grid);
+
+  static bool _validGrid(String g) => RegExp(r'^[A-Ra-r]{2}[0-9]{2}').hasMatch(g);
+
+  static double? _num(dynamic v) => v is num ? v.toDouble() : double.tryParse('${v ?? ''}');
+
+  static String _str(dynamic v) => v == null || v == false ? '' : '$v'.trim();
+
+  /// "UNITED STATES OF AMERICA" -> "United States of America"
+  static String _titleCase(String s) {
+    const small = {'of', 'and', 'the', 'de', 'da', 'du'};
+    var i = 0;
+    return s.toLowerCase().split(' ').map((w) {
+      final first = i++ == 0;
+      if (w.isEmpty || (!first && small.contains(w))) return w;
+      return w[0].toUpperCase() + w.substring(1);
+    }).join(' ');
+  }
+
+  /// From the callbook data Wavelog's lookup returns (`callbook`), when the
+  /// server has a callbook set up and found the call. [dxcc] is Wavelog's
+  /// country name for the call, used when the callbook has none.
+  static HamProfile? fromWavelogCallbook(String callsign, dynamic cb, String dxcc) {
+    if (cb is! Map) return null;
+    if (_str(cb['error']).isNotEmpty) return null;
+    final name = _str(cb['name']);
+    final grid = _str(cb['gridsquare']);
+    if (name.isEmpty && !_validGrid(grid)) return null;
+    final country = _str(cb['country']).isNotEmpty ? _str(cb['country']) : dxcc;
+    return HamProfile(
+      callsign: _str(cb['callsign']).isNotEmpty ? _str(cb['callsign']).toUpperCase() : callsign,
+      name: name.isEmpty ? "Unknown" : name,
+      licenseClass: _str(cb['class']).isEmpty ? "---" : _str(cb['class']),
+      city: _str(cb['city']),
+      state: _str(cb['state']),
+      country: country,
+      grid: grid,
+      lat: _num(cb['lat']),
+      lon: _num(cb['long'] ?? cb['lon']),
+    );
+  }
+
+  /// From what Wavelog knows without a callbook: the name, QTH and grid of
+  /// your last contact with the call, and its DXCC country.
+  static HamProfile? fromWavelogLogbook(String callsign, Map data, String dxcc) {
+    final name = _str(data['name']);
+    final grid = _str(data['gridsquare']);
+    if (name.isEmpty && !_validGrid(grid) && dxcc.isEmpty) return null;
+    return HamProfile(
+      callsign: callsign,
+      name: name.isEmpty ? "Unknown" : name,
+      licenseClass: "---",
+      city: _str(data['location']),
+      state: _str(data['state']),
+      country: dxcc,
+      grid: grid,
+    );
+  }
+
   // --- PARSE QRZ XML ---
   factory HamProfile.fromQrzXml(String xml) {
     String getTag(String tag) {
@@ -100,27 +163,82 @@ class HamProfile {
 class CallsignLookup {
   static String? _qrzSessionKey;
 
-  static Future<HamProfile> fetch(String callsign) async {
-    // 1. Try Online (QRZ)
-    HamProfile profile = await _fetchQrz(callsign);
-    
-    // 2. If Found Online, Cache It
-    if (profile.name != "Unknown" && profile.name != "Not Found") {
-       await DatabaseService().cacheCallsign(profile.toMap());
-       return profile;
+  /// Name, location and grid for [callsign], tried in this order:
+  ///
+  /// 1. QRZ directly, when there's a QRZ login in Settings: full names and
+  ///    licence class.
+  /// 2. The callbook set up on your Wavelog server (QRZ, HamQTH, QRZCQ, ...),
+  ///    through Wavelog's lookup API. Wavelog passes on HamQTH's nickname
+  ///    field as the name, so that's usually a first name only.
+  /// 3. Wavelog's own logbook: your last contact with the call, and its
+  ///    country.
+  /// 4. This phone's cache of earlier lookups (works offline).
+  ///
+  /// Online results from 1 and 2 are cached for offline use.
+  static Future<HamProfile> fetch(String callsign, {bool offline = false}) async {
+    HamProfile? fromLogbook;
+    if (!offline) {
+      final qrz = await _fetchQrz(callsign);
+      if (qrz.isFound) {
+        debugPrint('Lookup $callsign: QRZ from the phone');
+        return _cache(qrz);
+      }
+
+      final wl = await _fetchWavelog(callsign);
+      if (wl.callbook != null) return _cache(wl.callbook!);
+      fromLogbook = wl.logbook;
     }
 
-    // 3. If Not Found Online (or Offline), Check Cache
     final cachedData = await DatabaseService().getCachedCallsign(callsign);
-    if (cachedData != null) {
-      return HamProfile.fromMap(cachedData);
-    }
+    if (cachedData != null) return HamProfile.fromMap(cachedData);
 
-    // 4. Return Empty (Unknown)
-    return HamProfile.empty();
+    return fromLogbook ?? HamProfile.empty();
   }
 
-  static Future<HamProfile> _fetchQrz(String callsign) async {
+  static Future<HamProfile> _cache(HamProfile p) async {
+    await DatabaseService().cacheCallsign(p.toMap());
+    return p;
+  }
+
+  /// Wavelog's lookup, asking it to include its callbook's data.
+  static Future<({HamProfile? callbook, HamProfile? logbook})> _fetchWavelog(String callsign) async {
+    final ep = WavelogEndpoint(
+      await AppSettings.getString(AppSettings.keyWavelogUrl),
+      await AppSettings.getString(AppSettings.keyWavelogKey),
+    );
+    if (!ep.isConfigured) return (callbook: null, logbook: null);
+    try {
+      final http.Response response;
+      if (ep.isV2) {
+        response = await http
+            .get(ep.uri('lookup', {'callsign': callsign, 'detail': 'full', 'callbook': 'true'}),
+                headers: ep.headers)
+            .timeout(const Duration(seconds: 12));
+      } else {
+        response = await http
+            .post(ep.uri('private_lookup'),
+                headers: ep.headers,
+                body: jsonEncode({'key': ep.apiKey, 'callsign': callsign, 'callbook': true}))
+            .timeout(const Duration(seconds: 12));
+      }
+      if (response.statusCode != 200) return (callbook: null, logbook: null);
+      final decoded = jsonDecode(response.body);
+      final data = ep.isV2 ? decoded['data'] : decoded;
+      if (data is! Map) return (callbook: null, logbook: null);
+      final dxcc = HamProfile._titleCase(HamProfile._str(data['dxcc']));
+      final cb = data['callbook'];
+      debugPrint('Lookup $callsign: Wavelog callbook '
+          '${cb is Map ? (HamProfile._str(cb['error']).isEmpty ? 'answered (${HamProfile._str(cb['source'])})' : 'error: ${HamProfile._str(cb['error'])}') : 'not returned'}');
+      return (
+        callbook: HamProfile.fromWavelogCallbook(callsign, data['callbook'], dxcc),
+        logbook: HamProfile.fromWavelogLogbook(callsign, data, dxcc),
+      );
+    } catch (_) {
+      return (callbook: null, logbook: null);
+    }
+  }
+
+  static Future<HamProfile> _fetchQrz(String callsign, {bool retried = false}) async {
     String user = await AppSettings.getString(AppSettings.keyHamQthUser);
     String pass = await AppSettings.getString(AppSettings.keyHamQthPass);
 
@@ -128,24 +246,31 @@ class CallsignLookup {
 
     if (_qrzSessionKey == null) {
       bool loggedIn = await _performQrzLogin(user, pass);
-      if (!loggedIn) return HamProfile.empty();
+      if (!loggedIn) {
+        debugPrint('Lookup $callsign: QRZ login failed');
+        return HamProfile.empty();
+      }
     }
 
     try {
       final url = Uri.parse("https://xmldata.qrz.com/xml/current/?s=$_qrzSessionKey&callsign=$callsign");
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         String xml = response.body;
 
-        if (xml.contains('<Error>')) {
-           if (xml.toLowerCase().contains('session') || xml.toLowerCase().contains('expired')) {
-             _qrzSessionKey = null;
-             if (await _performQrzLogin(user, pass)) {
-               return _fetchQrz(callsign); // Retry
-             }
-           }
-           return HamProfile.empty();
+        final error = RegExp(r'<Error>(.*?)</Error>').firstMatch(xml)?.group(1)?.toLowerCase();
+        if (error != null) {
+          debugPrint('Lookup $callsign: QRZ says "$error"');
+          // "Session Timeout" / "Invalid session key": log in again, once.
+          // Anything else (e.g. "Not found: XX1XX") just means no result.
+          if (!retried && (error.contains('session') || error.contains('timeout'))) {
+            _qrzSessionKey = null;
+            if (await _performQrzLogin(user, pass)) {
+              return _fetchQrz(callsign, retried: true);
+            }
+          }
+          return HamProfile.empty();
         }
 
         if (xml.contains('<call>')) {
@@ -154,7 +279,7 @@ class CallsignLookup {
         }
       }
     } catch (e) {
-      // Network Error
+      debugPrint('Lookup $callsign: QRZ request failed: $e');
     }
     return HamProfile.empty();
   }
@@ -162,7 +287,7 @@ class CallsignLookup {
   static Future<bool> _performQrzLogin(String user, String pass) async {
     try {
       final url = Uri.parse("https://xmldata.qrz.com/xml/current/?username=$user&password=$pass");
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
         final RegExp keyRegex = RegExp(r'<Key>(.*?)</Key>');
@@ -173,7 +298,7 @@ class CallsignLookup {
         }
       }
     } catch (e) {
-      // Login Error
+      debugPrint('QRZ login request failed: $e');
     }
     return false;
   }
