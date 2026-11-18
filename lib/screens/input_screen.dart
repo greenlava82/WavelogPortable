@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'details_screen.dart';
 import 'settings_screen.dart';
@@ -8,6 +9,9 @@ import '../services/session_service.dart';
 import '../widgets/keypad.dart';
 import '../widgets/session_drawer.dart';
 import '../widgets/status_banner.dart';
+import '../widgets/streak_banner.dart';
+import '../services/streak_service.dart';
+import '../services/streak_reminder.dart';
 
 
 class CallsignInputScreen extends StatefulWidget {
@@ -16,14 +20,55 @@ class CallsignInputScreen extends StatefulWidget {
   State<CallsignInputScreen> createState() => _CallsignInputScreenState();
 }
 
-class _CallsignInputScreenState extends State<CallsignInputScreen> {
+class _CallsignInputScreenState extends State<CallsignInputScreen> with WidgetsBindingObserver {
   final TextEditingController _callsignController = TextEditingController();
-  
+  StreakStatus? _streak;
+  Timer? _streakTimer;
+
   @override
   void initState() {
     super.initState();
     SessionService().init(); // Init Service
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkSettings());
+    _refreshStreak();
+    // Keeps "ends in 3h 10m" current, and rolls over at 00:00Z.
+    _streakTimer = Timer.periodic(const Duration(minutes: 1), (_) => _tickStreak());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _streakTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshStreak();
+  }
+
+  /// Every minute: keep "ends in 3h 10m" current, roll over at 00:00Z, and
+  /// follow the Settings switch.
+  Future<void> _tickStreak() async {
+    if (!mounted) return;
+    if (!await AppSettings.getStreakEnabled()) {
+      if (mounted && _streak != null) setState(() => _streak = null);
+      return;
+    }
+    final s = _streak;
+    final now = DateTime.now().toUtc();
+    if (s == null || now.day != s.nowUtc.day) {
+      await _refreshStreak();
+    } else if (mounted) {
+      setState(() => _streak = s.at(now));
+    }
+  }
+
+  Future<void> _refreshStreak() async {
+    final status = await StreakService.current(offline: SessionService().isOfflineMode);
+    if (mounted) setState(() => _streak = status);
+    await StreakReminder.schedule(status: status);
   }
 
   Future<void> _checkSettings() async {
@@ -61,6 +106,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
             setState(() {
               _callsignController.clear();
             });
+            _refreshStreak();
           }
         });
         
@@ -101,6 +147,7 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> {
           body: Column(
             children: [
               StatusBanner(isOffline: isOffline, sessionName: sessionName),
+              if (_streak != null) StreakBanner(status: _streak!),
 
               Expanded(
                 child: Center(

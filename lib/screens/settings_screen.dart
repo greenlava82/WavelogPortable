@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/settings_service.dart';
+import '../services/streak_reminder.dart';
 import '../services/wavelog_service.dart';
 import '../services/wavelog_endpoint.dart';
 import '../services/database_service.dart';
@@ -28,6 +29,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<Map<String, String>> _availableStations = [];
   bool _isLoadingStations = false;
   String _parkListStatus = '';
+  bool _streakEnabled = true;
 
   @override
   void initState() {
@@ -64,6 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String hUser = await AppSettings.getString(AppSettings.keyHamQthUser);
     String hPass = await AppSettings.getString(AppSettings.keyHamQthPass);
     List<String> modes = await AppSettings.getModes();
+    bool streakEnabled = await AppSettings.getStreakEnabled();
 
     setState(() {
       _callsignCtrl.text = call;
@@ -73,6 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _hamqthUserCtrl.text = hUser;
       _hamqthPassCtrl.text = hPass;
       _activeModes = modes;
+      _streakEnabled = streakEnabled;
       
       if (stId.isNotEmpty) {
         _selectedStationId = stId;
@@ -230,6 +234,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildTextField("Username", _hamqthUserCtrl, icon: Icons.person),
           _buildTextField("Password", _hamqthPassCtrl, obscure: true, icon: Icons.lock),
           
+
+          _buildHeader("Daily Streak"),
+          SwitchListTile(
+            secondary: const Icon(Icons.local_fire_department),
+            title: const Text("Streak tracker"),
+            subtitle: const Text(
+                "Shows your daily QSO streak on the main screen and warns at 21:45 UTC if you have no contact today. Needs an API v2 (wl2_) key."),
+            value: _streakEnabled,
+            onChanged: (on) async {
+              setState(() => _streakEnabled = on);
+              await AppSettings.setStreakEnabled(on);
+              if (on) {
+                await StreakReminder.allowPermissionPrompt();
+                await StreakReminder.schedule();
+              } else {
+                await StreakReminder.cancel();
+              }
+            },
+          ),
 
           _buildHeader("Databases"),
           ListTile(
