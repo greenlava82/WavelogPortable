@@ -8,6 +8,7 @@ import 'settings_service.dart';
 import '../models/rst_report.dart';
 import '../models/lookup_result.dart';
 import '../services/database_service.dart';
+import '../utils/adif_mode.dart';
 
 class WavelogService {
   static final Logger _logger = Logger('WavelogService');
@@ -142,7 +143,9 @@ class WavelogService {
 
     add("CALL", callsign.toUpperCase());
     add("BAND", band);
-    add("MODE", mode);
+    final adifMode = AdifMode.fromAppMode(mode);
+    add("MODE", adifMode.mode);
+    if (adifMode.submode != null) add("SUBMODE", adifMode.submode!);
     add("FREQ", freq.toString());
     add("QSO_DATE", qsoDate);
     add("TIME_ON", timeOnStr);
@@ -222,7 +225,8 @@ class WavelogService {
       "key": apiKey,
       "callsign": callsign,
       "band": band,
-      "mode": mode
+      // Wavelog matches worked-before on the ADIF MODE column only
+      "mode": AdifMode.fromAppMode(mode).mode
     };
 
     try {

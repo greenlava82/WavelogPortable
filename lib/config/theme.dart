@@ -42,7 +42,7 @@ const Map<String, List<double>> bandPlan = {
 
 const List<String> masterModeList = [
   'SSB', 'CW', 'FM', 'AM', 
-  'DMR', 'C4FM', 'D-STAR', 
+  'DMR', 'C4FM', 'D-STAR', 'FreeDV',
   'FT8', 'FT4', 'JS8', 'RTTY', 'PSK31', 
   'SSTV'
 ];
