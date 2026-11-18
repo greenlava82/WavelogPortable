@@ -14,6 +14,7 @@ class AppSettings {
   static const String keyLastFreq = 'last_freq';
   static const String keyLastMode = 'last_mode';
   static const String keyOfflineMode = 'offline_mode';
+  static const String keyPotaDownloadedAt = 'pota_downloaded_at';
 
   static Future<void> saveString(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
