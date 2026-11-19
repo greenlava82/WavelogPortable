@@ -25,7 +25,7 @@
 ## Housekeeping
 
 - [ ] Log one real contact with the v2 key and confirm it appears in Wavelog (v2 upload is only covered by unit tests).
-- [ ] Bump the app version (still 1.0.2+5).
+- [x] Bump the app version (1.1.0+6).
 - [ ] Rebase or retire the local-only `drt/offlinedb` branch.
 - [ ] Remove `android/build/reports/problems/problems-report.html`, which was committed by accident.
 - [ ] Map other digital submodes to ADIF properly (FT4, JS8, PSK31, DMR, C4FM, D-STAR), as was done for FreeDV.
