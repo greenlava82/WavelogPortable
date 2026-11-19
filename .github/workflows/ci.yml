@@ -59,7 +59,7 @@ jobs:
       # Debug build: installs as "Wavelog Dev" next to the Play Store app.
       - run: flutter build apk --debug
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wavelog-dev-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
