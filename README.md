@@ -1,12 +1,17 @@
 <p align="center">
-  <img src="assets/images/branding.png" alt="Wavelog Portable" width="420">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/images/branding.png">
+    <img src="assets/images/branding_green.png" alt="Wavelog Portable" width="420">
+  </picture>
 </p>
+
+<p align="center"><b><a href="https://greenlava82.github.io/WavelogPortable/">Website</a></b> · <a href="#setup">Setup</a> · <a href="#development">Development</a></p>
 
 # Wavelog Portable
 
 A fast, field-friendly amateur radio logger for Android (and iPhone), built with Flutter. It logs straight to your own [Wavelog](https://github.com/wavelog/wavelog) server and keeps working when the signal drops, which makes it a good fit for POTA and SOTA activations and for park hunting.
 
-Developed by K1GLV. Powered by (and with thanks to) the Wavelog project.
+Developed by K1GLV. Powered by (and with thanks to) the Wavelog project. See the [website](https://greenlava82.github.io/WavelogPortable/) for screenshots.
 
 ## Features
 
@@ -80,7 +85,7 @@ A banner under the title bar shows your Wavelog streak, counted the same way as 
 
 ## Branding
 
-The app icon and logo are hand-drawn originals, lightly cleaned up to work as an app icon (Android adaptive icon, splash screen, Play Store). The originals and the scripts used are in [`assets/images/source`](assets/images/source); regenerate the icons with:
+The app icon and logo are hand-drawn originals, lightly cleaned up to work as an app icon (Android adaptive icon, splash screen, Play Store). The logo comes in white (`branding.png`, for dark backgrounds) and green (`branding_green.png`, for light ones). The originals and the scripts used are in [`assets/images/source`](assets/images/source); regenerate the icons with:
 
 ```bash
 dart run flutter_launcher_icons
@@ -111,6 +116,10 @@ flutter run
 Release builds (`flutter build appbundle`) keep the Play Store ID `com.k1glv.wavelogportable`.
 
 Development builds also add **Settings → Daily Streak → Send test reminder**, which shows the streak notification immediately, with your current streak, to check how it looks.
+
+### Website
+
+The marketing page is [`docs/index.html`](docs/index.html), published by GitHub Pages from the `docs/` folder on `main`. Changes go live about a minute after they're merged.
 
 ### Rebuilding the offline map
 
