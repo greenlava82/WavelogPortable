@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wavelog Portable</title>
+<meta name="description" content="A fast, field-friendly ham radio logger for Android that logs straight to your own Wavelog server, and keeps working when the signal drops. Built for POTA, SOTA and park hunting.">
+<meta property="og:title" content="Wavelog Portable">
+<meta property="og:description" content="A field-friendly ham radio logger that logs straight to your Wavelog server. Built for POTA, SOTA and park hunting.">
+<meta property="og:image" content="img/icon.png">
+<link rel="icon" href="img/favicon.png">
+<style>
+  :root {
+    --green: #0c6403;
+    --green-deep: #08470a;
+    --green-soft: #e3efdc;
+    --paper: #faf6ee;
+    --ink: #1c2419;
+    --muted: #5b6656;
+    --card: #ffffff;
+    --line: #dfe6da;
+    --bg: #f6f8f3;
+    --accent: #e8781f;
+    --shadow: 0 18px 40px -18px rgba(8, 71, 10, .35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --green-soft: #1d2b1a;
+      --paper: #1a2118;
+      --ink: #e7eee3;
+      --muted: #a3b09d;
+      --card: #20291d;
+      --line: #2f3b2b;
+      --bg: #141a12;
+      --shadow: 0 18px 40px -18px rgba(0, 0, 0, .7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --green-soft: #1d2b1a; --paper: #1a2118; --ink: #e7eee3; --muted: #a3b09d;
+    --card: #20291d; --line: #2f3b2b; --bg: #141a12; --shadow: 0 18px 40px -18px rgba(0,0,0,.7);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+  /* Hero */
+  .hero {
+    background:
+      radial-gradient(1200px 500px at 85% -10%, rgba(255,255,255,.12), transparent 60%),
+      linear-gradient(160deg, var(--green) 0%, var(--green-deep) 100%);
+    color: #fff;
+    overflow: hidden;
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
+  .nav .brand img { width: 34px; height: 34px; border-radius: 8px; }
+  .nav a.gh { font-size: 15px; opacity: .9; text-decoration: none; border: 1px solid rgba(255,255,255,.35); padding: 6px 12px; border-radius: 999px; }
+  .nav a.gh:hover { background: rgba(255,255,255,.1); }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: center; padding: 30px 0 0; }
+  .logo { width: 300px; max-width: 80%; margin: 0 0 18px -8px; }
+  h1 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.12; margin: 0 0 16px; letter-spacing: -.02em; }
+  .lede { font-size: 19px; color: rgba(255,255,255,.88); margin: 0 0 28px; max-width: 34em; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 12px; font-weight: 650; text-decoration: none; font-size: 16px;
+  }
+  .btn.primary { background: #fff; color: var(--green-deep); }
+  .btn.primary:hover { background: var(--paper); }
+  .btn.ghost { color: #fff; border: 1px solid rgba(255,255,255,.4); }
+  .btn.ghost:hover { background: rgba(255,255,255,.1); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 40px; list-style: none; }
+  .tags li { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.12); }
+  .hero-phone { align-self: end; justify-self: center; }
+
+  .phone {
+    width: 280px; border-radius: 34px; padding: 10px; background: #111;
+    box-shadow: var(--shadow), 0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .phone img { border-radius: 26px; width: 100%; height: auto; }
+  .hero .phone { width: 300px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; padding-bottom: 0; margin-bottom: -2px; }
+  .hero .phone img { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+  /* Sections */
+  section { padding: 80px 0; }
+  .eyebrow { color: var(--green); font-weight: 700; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .eyebrow { color: #8fd17e; } }
+  h2 { font-size: clamp(26px, 3.2vw, 36px); line-height: 1.2; margin: 0 0 14px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); max-width: 40em; margin: 0 0 40px; }
+
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feature { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .feature .ico {
+    width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+    background: var(--green-soft); font-size: 22px; margin-bottom: 12px;
+  }
+  .feature h3 { margin: 0 0 6px; font-size: 18px; }
+  .feature p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  /* Screens */
+  .screens { background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .shot .phone { width: 100%; border-radius: 28px; padding: 8px; }
+  .shot .phone img { border-radius: 21px; }
+  .shot figcaption { margin-top: 14px; font-size: 15px; color: var(--muted); }
+  .shot figcaption b { color: var(--ink); display: block; font-size: 16px; }
+  figure { margin: 0; }
+
+  /* Setup */
+  .steps { counter-reset: s; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 0; list-style: none; margin: 0; }
+  .steps li { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 22px 22px 66px; position: relative; }
+  .steps li::before {
+    counter-increment: s; content: counter(s);
+    position: absolute; left: 20px; top: 20px; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--green); color: #fff; font-weight: 700; display: grid; place-items: center;
+  }
+  .steps h3 { margin: 0 0 6px; font-size: 18px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  code { font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--green-soft); padding: 1px 6px; border-radius: 6px; }
+
+  /* Story */
+  .story { display: grid; grid-template-columns: 160px 1fr; gap: 32px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 32px; }
+  .story img { border-radius: 28px; box-shadow: var(--shadow); }
+  .story p { margin: 0 0 10px; color: var(--muted); }
+  .story p:last-child { margin: 0; }
+
+  footer { background: var(--green-deep); color: rgba(255,255,255,.85); padding: 40px 0; font-size: 15px; }
+  footer .row { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; align-items: center; }
+  footer a { color: #fff; }
+  footer .small { font-size: 13px; opacity: .75; margin-top: 14px; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; text-align: left; }
+    .hero-phone { justify-self: center; }
+    .features, .steps { grid-template-columns: 1fr 1fr; }
+    .shots { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 16px; }
+    section { padding: 56px 0; }
+    .features, .steps { grid-template-columns: 1fr; }
+    .shots { grid-template-columns: 1fr 1fr; gap: 14px; }
+    .hero .phone { width: 250px; }
+    .story { grid-template-columns: 1fr; padding: 24px; }
+    .story img { width: 120px; }
+    .lede { font-size: 17px; }
+    .logo { width: 210px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="brand" href="#"><img src="img/icon.png" alt="">Wavelog Portable</a>
+      <a class="gh" href="https://github.com/greenlava82/WavelogPortable">GitHub</a>
+    </nav>
+    <div class="hero-grid">
+      <div>
+        <img class="logo" src="img/logo.png" alt="Wavelog Portable">
+        <h1>Log contacts in the field, straight to your own Wavelog.</h1>
+        <p class="lede">A fast, big-button logger for Android, built for POTA and SOTA activations and park hunting. It talks to your Wavelog server directly, and keeps working when the signal drops.</p>
+        <div class="ctas">
+          <a class="btn primary" href="https://github.com/greenlava82/WavelogPortable">Get it on GitHub</a>
+          <a class="btn ghost" href="#features">See what it does</a>
+        </div>
+        <ul class="tags">
+          <li>Android</li><li>Works offline</li><li>Wavelog API v1 &amp; v2</li><li>Free &amp; open source</li>
+        </ul>
+      </div>
+      <div class="hero-phone">
+        <div class="phone"><img src="img/details.webp" width="540" height="1075" alt="Log Contact screen for W1AW, showing name, location, grid, band dial and signal reports"></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="features">
+    <div class="wrap">
+      <p class="eyebrow">Built for the field</p>
+      <h2>Everything you need between “CQ POTA” and the next caller.</h2>
+      <p class="sub">Type the call, check the badge, tap save. The rest happens on its own: lookups, parks, upload, and the logbook on your server.</p>
+      <div class="features">
+        <div class="feature">
+          <div class="ico">⚡</div>
+          <h3>Fast entry</h3>
+          <p>A big callsign keypad, swipeable band and VFO dials, and reports that default to 59 / 599. Band, frequency and mode are remembered between contacts.</p>
+        </div>
+        <div class="feature">
+          <div class="ico">🌲</div>
+          <h3>POTA &amp; SOTA, offline</h3>
+          <p>Search every park and summit by reference or name, with no signal. Add several parks per contact, or recall the last ones when two ops share a park.</p>
+        </div>
+        <div class="feature">
+          <div class="ico">📡</div>
+          <h3>Straight to Wavelog</h3>
+          <p>Contacts go to your own Wavelog server as they're logged. No signal? Offline mode queues them and syncs when you're back.</p>
+        </div>
+        <div class="feature">
+          <div class="ico">🔁</div>
+          <h3>Worked before, at a glance</h3>
+          <p>A NEW / WORKED badge for the call, band and mode. Tap “WORKED 5×” for your recent contacts with that station.</p>
+        </div>
+        <div class="feature">
+          <div class="ico">🔥</div>
+          <h3>Daily streak</h3>
+          <p>Your Wavelog QSO streak on the main screen, and a reminder at 21:45 UTC on days you haven't logged yet. Easy to switch off.</p>
+        </div>
+        <div class="feature">
+          <div class="ico">🗺️</div>
+          <h3>Maps that read in English</h3>
+          <p>See where the other station is, with English labels worldwide, and a built-in world map for when there's no coverage.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screens">
+    <div class="wrap">
+      <p class="eyebrow">A closer look</p>
+      <h2>Simple screens, big targets.</h2>
+      <p class="sub">Made to be used one-handed, outdoors, from a picnic table.</p>
+      <div class="shots">
+        <figure class="shot">
+          <div class="phone"><img src="img/main.webp" width="540" height="1075" loading="lazy" alt="Main screen with a callsign keypad and the daily streak banner"></div>
+          <figcaption><b>Callsign keypad</b>Type the call, tap the arrow. The banner keeps an eye on your streak.</figcaption>
+        </figure>
+        <figure class="shot">
+          <div class="phone"><img src="img/details.webp" width="540" height="1075" loading="lazy" alt="Log Contact screen"></div>
+          <figcaption><b>Log Contact</b>Name, location and grid filled in, with band, frequency and mode remembered.</figcaption>
+        </figure>
+        <figure class="shot">
+          <div class="phone"><img src="img/act.webp" width="540" height="1075" loading="lazy" alt="Select Activity dialog with POTA and SOTA search results for Greylock"></div>
+          <figcaption><b>Parks &amp; summits</b>Search POTA and SOTA offline; recall the last parks with one tap.</figcaption>
+        </figure>
+        <figure class="shot">
+          <div class="phone"><img src="img/map.webp" width="540" height="1075" loading="lazy" alt="Map of the eastern United States with a pin at Newington, Connecticut"></div>
+          <figcaption><b>Where they are</b>A quick map with English labels, online or off.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="wrap">
+      <p class="eyebrow">Getting started</p>
+      <h2>Up and running in a few minutes.</h2>
+      <p class="sub">You'll need a <a href="https://github.com/wavelog/wavelog">Wavelog</a> server: your own, or one you have an account on.</p>
+      <ol class="steps">
+        <li>
+          <h3>Connect Wavelog</h3>
+          <p>Enter your Wavelog URL and an API key. A v2 key (<code>wl2_…</code>) unlocks contact history, the logbook viewer and the streak. Pick your station profile.</p>
+        </li>
+        <li>
+          <h3>Download the park lists</h3>
+          <p>One tap, on Wi-Fi, saves the POTA and SOTA lists (about 15&nbsp;MB) to your phone for offline search.</p>
+        </li>
+        <li>
+          <h3>Go operate</h3>
+          <p>Lookups use your Wavelog server's callbook, or your QRZ login. Then just log: contacts upload as you go, or queue until you're back in range.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="wrap">
+      <div class="story">
+        <img src="img/icon.png" width="160" height="160" alt="The Wavelog Portable icon: an open logbook with radio waves">
+        <div>
+          <p class="eyebrow">Made by a ham, for hams</p>
+          <p>Wavelog Portable is written by K1GLV for real activations and hunting sessions, and it's free and open source under the Apache 2.0 license. The icon started life as a hand drawing, and it still is one.</p>
+          <p>Ideas, bug reports and pull requests are welcome on <a href="https://github.com/greenlava82/WavelogPortable">GitHub</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <div><b>Wavelog Portable</b> · by K1GLV</div>
+      <div><a href="https://github.com/greenlava82/WavelogPortable">Source code</a> · <a href="https://github.com/greenlava82/WavelogPortable/blob/main/LICENSE">Apache 2.0</a> · <a href="https://github.com/wavelog/wavelog">Wavelog</a></div>
+    </div>
+    <p class="small">Wavelog Portable is an independent app that works with Wavelog; it isn't made by the Wavelog project. Map data © Esri and Natural Earth.</p>
+  </div>
+</footer>
+
+</body>
+</html>
