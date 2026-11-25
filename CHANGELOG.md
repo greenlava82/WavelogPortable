@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.1 (build 7)
+
+### Changed
+- **Streak banner always on with a v2 key.** The daily streak shows on the main screen whenever you use a `wl2_` key. The Settings switch is now **Streak reminder** and only turns the 21:45 UTC notification on or off. If you had the streak tracker switched off, the reminder stays off.
+
+### Play Store "What's new" (under 500 characters)
+
+```
+New in 1.1.1:
+• Your daily QSO streak now always shows on the main screen when you use an API v2 (wl2_) key
+• Settings → Daily Streak → Streak reminder turns just the 21:45 UTC notification on or off
+```
+
 ## 1.1.0 (build 6)
 
 ### New
