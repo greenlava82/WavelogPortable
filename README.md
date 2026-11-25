@@ -117,6 +117,10 @@ Release builds (`flutter build appbundle`) keep the Play Store ID `com.k1glv.wav
 
 Development builds also add **Settings → Daily Streak → Send test reminder**, which shows the streak notification immediately, with your current streak, to check how it looks.
 
+### Releasing to Google Play
+
+Builds go to Play from GitHub Actions: **Actions → Release to Google Play → Run workflow**, and pick a track. One-time setup and details are in [RELEASING.md](RELEASING.md).
+
 ### Website
 
 The marketing page is [`docs/index.html`](docs/index.html), published by GitHub Pages from the `docs/` folder on `main`. Changes go live about a minute after they're merged.
