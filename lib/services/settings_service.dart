@@ -18,7 +18,8 @@ class AppSettings {
   static const String keyOfflineMode = 'offline_mode';
   static const String keyPotaDownloadedAt = 'pota_downloaded_at';
   static const String keyLastActivities = 'last_activities';
-  static const String keyStreakEnabled = 'streak_enabled';
+  // Stored under the old "streak tracker" key so an existing "off" carries over.
+  static const String keyStreakReminderEnabled = 'streak_enabled';
 
   static Future<void> saveString(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -77,14 +78,15 @@ class AppSettings {
     }
   }
 
-  /// Daily-QSO streak banner and 21:45Z reminder. On unless switched off.
-  static Future<bool> getStreakEnabled() async {
+  /// 21:45Z streak reminder notification. On unless switched off. (The
+  /// streak banner always shows with a v2 key.)
+  static Future<bool> getStreakReminderEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(keyStreakEnabled) ?? true;
+    return prefs.getBool(keyStreakReminderEnabled) ?? true;
   }
 
-  static Future<void> setStreakEnabled(bool enabled) async {
+  static Future<void> setStreakReminderEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(keyStreakEnabled, enabled);
+    await prefs.setBool(keyStreakReminderEnabled, enabled);
   }
 }

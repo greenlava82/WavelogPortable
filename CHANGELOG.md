@@ -6,7 +6,7 @@
 - **API v2 keys.** Wavelog `wl2_` keys work alongside v1 keys; the key field shows which version and scopes were detected.
 - **Contact history.** The WORKED badge shows how many times you've worked the call ("WORKED 5×"); tap it for your 5 most recent contacts with that station (v2 key).
 - **Logbook viewer.** The book icon shows your last 10–100 contacts, from Wavelog (v2 key) or from the phone.
-- **Daily streak.** A banner shows your Wavelog QSO streak and today's count, and a reminder at 21:45 UTC warns on days you haven't logged yet. Can be switched off in Settings.
+- **Daily streak.** A banner shows your Wavelog QSO streak and today's count, and a reminder at 21:45 UTC warns on days you haven't logged yet. The banner shows whenever you use a v2 key; the reminder can be switched off in Settings.
 - **Recall last parks.** A button in Select Activity adds the parks from the contact you just logged, for when two operators share a park.
 - **FreeDV** is now a loggable mode (sent to Wavelog as DIGITALVOICE / FREEDV).
 - **Lookups through Wavelog.** If the phone has no QRZ login, or QRZ doesn't know the call, names and locations come from the callbook set up on your Wavelog server, then from your last contact with the call.

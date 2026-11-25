@@ -30,7 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   List<Map<String, String>> _availableStations = [];
   bool _isLoadingStations = false;
   String _parkListStatus = '';
-  bool _streakEnabled = true;
+  bool _streakReminderEnabled = true;
 
   @override
   void initState() {
@@ -67,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String hUser = await AppSettings.getString(AppSettings.keyHamQthUser);
     String hPass = await AppSettings.getString(AppSettings.keyHamQthPass);
     List<String> modes = await AppSettings.getModes();
-    bool streakEnabled = await AppSettings.getStreakEnabled();
+    bool streakReminderEnabled = await AppSettings.getStreakReminderEnabled();
 
     setState(() {
       _callsignCtrl.text = call;
@@ -77,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _hamqthUserCtrl.text = hUser;
       _hamqthPassCtrl.text = hPass;
       _activeModes = modes;
-      _streakEnabled = streakEnabled;
+      _streakReminderEnabled = streakReminderEnabled;
       
       if (stId.isNotEmpty) {
         _selectedStationId = stId;
@@ -245,14 +245,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           _buildHeader("Daily Streak"),
           SwitchListTile(
-            secondary: const Icon(Icons.local_fire_department),
-            title: const Text("Streak tracker"),
+            secondary: const Icon(Icons.notifications),
+            title: const Text("Streak reminder"),
             subtitle: const Text(
-                "Shows your daily QSO streak on the main screen and warns at 21:45 UTC if you have no contact today. Needs an API v2 (wl2_) key."),
-            value: _streakEnabled,
+                "Notifies you at 21:45 UTC if you have no contact today. The streak always shows on the main screen with an API v2 (wl2_) key."),
+            value: _streakReminderEnabled,
             onChanged: (on) async {
-              setState(() => _streakEnabled = on);
-              await AppSettings.setStreakEnabled(on);
+              setState(() => _streakReminderEnabled = on);
+              await AppSettings.setStreakReminderEnabled(on);
               if (on) {
                 await StreakReminder.allowPermissionPrompt();
                 await StreakReminder.schedule();
