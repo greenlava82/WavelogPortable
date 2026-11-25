@@ -149,11 +149,11 @@ void main() {
     });
   });
 
-  test('switched off or v1 key: no streak', () async {
+  test('v1 key: no streak; reminder off: streak still shown', () async {
     SharedPreferences.setMockInitialValues({
       'wavelog_url': 'https://log.example.com', 'wavelog_key': 'wl2_abcdef0123456789', 'streak_enabled': false,
     });
-    expect(await StreakService.current(now: now, offline: true), isNull);
+    expect(await StreakService.current(now: now, offline: true), isNotNull);
     SharedPreferences.setMockInitialValues({
       'wavelog_url': 'https://log.example.com', 'wavelog_key': 'cl1234567890abc',
     });

@@ -64,7 +64,7 @@ A banner under the title bar shows your Wavelog streak, counted the same way as 
 
 - **Reminder.** At about 21:45 UTC, if you haven't logged anything that day, the phone shows *"Your 9-day streak ends at 00:00 UTC"*, a little over two hours before the day ends. It comes from a background check, so the app doesn't need to be open. On Android the check may run a few minutes late; the notification states the actual time left. On iPhone, the reminder is set while the app is open and the streak is at risk, and cleared once you log.
 - **Counts.** Contacts logged on the phone count right away, even offline or still waiting to upload.
-- **Turning it off.** Settings → Daily Streak → **Streak tracker** hides the banner and stops the reminder.
+- **Turning the reminder off.** Settings → Daily Streak → **Streak reminder** stops the notification. The banner always shows with a v2 key.
 - **Needs** an API v2 key (`wl2_…`). With a v1 key the banner and reminder don't appear.
 
 ### Map
@@ -81,7 +81,7 @@ A banner under the title bar shows your Wavelog streak, counted the same way as 
    - **Station Profile.** Tap Refresh and choose the profile to log to.
 3. **Callbook.** Set one up on your Wavelog server, in its `config.php`: for example `$config['callbook'] = 'hamqth';` with `hamqth_username` and `hamqth_password` (HamQTH is free and includes grids), or `'qrz'` with a QRZ XML subscription. A list such as `['qrz', 'hamqth']` tries each in turn. The **QRZ Login** in the app's Settings is optional; add one for full names and licence class (it's tried first).
 4. **Databases.** Tap **Download POTA/SOTA Databases** once, on Wi-Fi, for offline park and summit search.
-5. **Daily Streak.** On by default. Allow notifications when asked to get the evening reminder.
+5. **Daily Streak.** The banner shows automatically with a v2 key. The evening reminder is on by default; allow notifications when asked.
 
 ## Branding
 

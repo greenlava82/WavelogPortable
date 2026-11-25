@@ -7,7 +7,6 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:workmanager/workmanager.dart';
 import 'settings_service.dart';
 import 'streak_service.dart';
-import 'wavelog_endpoint.dart';
 
 /// Background entry point: Android's WorkManager runs this at ~21:45Z.
 @pragma('vm:entry-point')
@@ -96,11 +95,8 @@ class StreakReminder {
   );
 
   static Future<bool> _enabledWithV2Key() async {
-    if (!await AppSettings.getStreakEnabled()) return false;
-    final url = await AppSettings.getString(AppSettings.keyWavelogUrl);
-    final key = await AppSettings.getString(AppSettings.keyWavelogKey);
-    final ep = WavelogEndpoint(url, key);
-    return ep.isConfigured && ep.isV2;
+    if (!await AppSettings.getStreakReminderEnabled()) return false;
+    return await StreakService.v2Endpoint() != null;
   }
 
   /// Lets [schedule] ask for notification permission again (the user just

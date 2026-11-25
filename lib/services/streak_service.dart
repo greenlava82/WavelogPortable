@@ -72,15 +72,21 @@ class StreakService {
     return parts.length == 2 && parts[0] == d ? int.tryParse(parts[1]) ?? 0 : 0;
   }
 
-  /// The streak from Wavelog, or null when it isn't available (feature
-  /// switched off, no v2 key). Without network it falls back to the last
-  /// known streak plus contacts logged on this phone.
-  static Future<StreakStatus?> current({DateTime? now, bool offline = false}) async {
-    if (!await AppSettings.getStreakEnabled()) return null;
+  /// The Wavelog endpoint when it can give a streak (configured, v2 key),
+  /// else null. v1 keys can't query QSOs by date, so no streak is shown.
+  static Future<WavelogEndpoint?> v2Endpoint() async {
     final url = await AppSettings.getString(AppSettings.keyWavelogUrl);
     final key = await AppSettings.getString(AppSettings.keyWavelogKey);
     final ep = WavelogEndpoint(url, key);
-    if (!ep.isConfigured || !ep.isV2) return null;
+    return ep.isConfigured && ep.isV2 ? ep : null;
+  }
+
+  /// The streak from Wavelog, or null when it isn't available (no v2 key).
+  /// Without network it falls back to the last known streak plus contacts
+  /// logged on this phone.
+  static Future<StreakStatus?> current({DateTime? now, bool offline = false}) async {
+    final ep = await v2Endpoint();
+    if (ep == null) return null;
     final checker = offline ? (DateTime _) async => null : wavelogDayChecker(ep);
     return compute(checker, now: now);
   }

@@ -49,10 +49,10 @@ class _CallsignInputScreenState extends State<CallsignInputScreen> with WidgetsB
   }
 
   /// Every minute: keep "ends in 3h 10m" current, roll over at 00:00Z, and
-  /// follow the Settings switch.
+  /// hide the banner if the key is no longer a v2 key.
   Future<void> _tickStreak() async {
     if (!mounted) return;
-    if (!await AppSettings.getStreakEnabled()) {
+    if (await StreakService.v2Endpoint() == null) {
       if (mounted && _streak != null) setState(() => _streak = null);
       return;
     }
